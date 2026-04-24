@@ -1,0 +1,9 @@
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src wss: https:; img-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), screen-wake-lock=()
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  Cache-control: no-store, no-cache, must-revalidate
+  Pragma: no-cache
