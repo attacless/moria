@@ -29,7 +29,7 @@ export function useMessages() {
     setMessages(prev => [...prev, ...msgs])
   }, [])
 
-  // Zero all messages immediately — call on panic or session end
+  // Zero all messages immediately - call on panic or session end
   const clearMessages = useCallback(() => {
     setMessages([])
   }, [])

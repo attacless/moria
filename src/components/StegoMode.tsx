@@ -68,7 +68,7 @@ export function StegoMode({ messages, myAlias: _myAlias, onSend, onExit }: Stego
         </select>
       </div>
 
-      {/* Document body — messages as paragraphs */}
+      {/* Document body - messages as paragraphs */}
       <div className="chat-messages stego-body">
         {messages
           .filter(m => m.alias !== 'system')

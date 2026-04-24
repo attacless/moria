@@ -4,8 +4,8 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { zeroBytes } from './argon2id'
 
 export interface IdentityKeypair {
-  publicKey:  Uint8Array   // 32 bytes — share with peers on join
-  privateKey: Uint8Array   // 32 bytes — never leave this device
+  publicKey:  Uint8Array   // 32 bytes - share with peers on join
+  privateKey: Uint8Array   // 32 bytes - never leave this device
 }
 
 // Generate a fresh ephemeral X25519 keypair.
@@ -28,12 +28,12 @@ export function derivePeerSessionKey(
   const sessionKey = hkdf(
     sha256,
     sharedSecret,
-    undefined,                              // no salt — shared secret is high-entropy
+    undefined,                              // no salt - shared secret is high-entropy
     new TextEncoder().encode('moria-p2p-session-key-v1'),
     32
   )
 
-  // Zero the raw shared secret — we only keep the HKDF output
+  // Zero the raw shared secret - we only keep the HKDF output
   sharedSecret.fill(0)
 
   return sessionKey

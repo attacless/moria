@@ -23,7 +23,7 @@ function pad(plaintext: Uint8Array): Uint8Array {
   // Content
   padded.set(plaintext, 2)
 
-  // Random fill — not zeros, to prevent pattern leakage
+  // Random fill - not zeros, to prevent pattern leakage
   const fill = randomBytes(BLOCK_SIZE - 2 - plaintext.length)
   padded.set(fill, 2 + plaintext.length)
 
@@ -36,7 +36,7 @@ function unpad(padded: Uint8Array): Uint8Array {
   return padded.slice(2, 2 + length)
 }
 
-// Round timestamp to nearest 60 seconds — prevents timing correlation attacks.
+// Round timestamp to nearest 60 seconds - prevents timing correlation attacks.
 export function roundTimestamp(ms: number): number {
   return Math.round(ms / 60_000) * 60_000
 }
@@ -64,7 +64,7 @@ export function encryptMessage(
 }
 
 // Decrypt a received wire blob.
-// Returns null on authentication failure — do not throw, just drop the message.
+// Returns null on authentication failure - do not throw, just drop the message.
 export function decryptMessage(
   wire: Uint8Array,
   peerSessionKey: Uint8Array
@@ -81,7 +81,7 @@ export function decryptMessage(
     const json    = new TextDecoder().decode(plain)
     return JSON.parse(json) as WireMessage
   } catch {
-    // Authentication tag mismatch or malformed — silently discard
+    // Authentication tag mismatch or malformed - silently discard
     return null
   }
 }

@@ -4,7 +4,7 @@ import App from './App'
 
 // ── bfcache defense ──────────────────────────────────────────
 // If browser restores page from cache (back button),
-// replace DOM immediately — session is already destroyed.
+// replace DOM immediately - session is already destroyed.
 window.addEventListener('pageshow', (e: PageTransitionEvent) => {
   if (e.persisted) {
     try { sessionStorage.clear() } catch (_) {}
@@ -38,7 +38,7 @@ function isWebRTCSupported(): boolean {
 }
 
 if (!isWebRTCSupported()) {
-  // Style the body directly — React is not mounted yet
+  // Style the body directly - React is not mounted yet
   document.body.style.cssText = `
     margin: 0;
     padding: 0;
@@ -121,7 +121,7 @@ if (!isWebRTCSupported()) {
     </div>
   `
 
-  // Stop here — do not mount React on unsupported browsers
+  // Stop here - do not mount React on unsupported browsers
 
 } else {
 

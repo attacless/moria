@@ -2,7 +2,7 @@ import { generateSecretKey, finalizeEvent, SimplePool } from 'nostr-tools'
 import { encryptMessage, decryptMessage, roundTimestamp } from '@crypto/chacha20'
 import type { WireMessage, Alias } from '@/types'
 
-// Larger pool — more fallbacks if individual relays are down
+// Larger pool - more fallbacks if individual relays are down
 const RELAY_POOL = [
   'wss://nos.lol',
   'wss://relay.primal.net',
@@ -51,7 +51,7 @@ async function getLiveRelays(n: number): Promise<string[]> {
 
 export interface DeadDropReceipt {
   eventId:   string
-  sk:        Uint8Array   // ephemeral signing key — kept for valid NIP-09 deletion
+  sk:        Uint8Array   // ephemeral signing key - kept for valid NIP-09 deletion
   expiresAt: number       // unix ms when relay event expires
 }
 
@@ -126,7 +126,7 @@ export async function publishDeadDrop(
       return { success: false, receipt: null, reason: 'publish_failed' }
     }
 
-    // Do NOT zero sk — caller stores it for NIP-09 deletion on terminate
+    // Do NOT zero sk - caller stores it for NIP-09 deletion on terminate
     const expiresAtMs = (Math.floor(Date.now() / 1000) + DROP_TTL_S) * 1000
     return { success: true, receipt: { eventId, sk, expiresAt: expiresAtMs } }
   } finally {
@@ -134,7 +134,7 @@ export async function publishDeadDrop(
   }
 }
 
-// NIP-09 deletion — signed with the original ephemeral keypair so relays
+// NIP-09 deletion - signed with the original ephemeral keypair so relays
 // that validate authorship will honor it. Best-effort: relays that ignore
 // NIP-09 or are unreachable let the 24h NIP-40 expiration tag handle cleanup.
 export async function deleteDeadDrops(
@@ -177,7 +177,7 @@ export async function fetchDeadDrops(
 ): Promise<{ alias: Alias; timestamp: number; body: string }[]> {
   const nowMs = Date.now()
   if (nowMs - lastFetchTime < FETCH_RATE_LIMIT_MS) {
-    console.warn('[deadDrop] fetch rate limited — too soon after last fetch')
+    console.warn('[deadDrop] fetch rate limited - too soon after last fetch')
     return []
   }
   lastFetchTime = nowMs
@@ -215,7 +215,7 @@ export async function fetchDeadDrops(
         body:      decrypted.body,
       })
     } catch {
-      // malformed — skip
+      // malformed - skip
     }
   }
 
@@ -231,7 +231,7 @@ export async function fetchDeadDrops(
 
     events.forEach(decryptEvent)
 
-    // If empty, wait 2s and retry once — relay propagation delay
+    // If empty, wait 2s and retry once - relay propagation delay
     if (results.length === 0 && events.length === 0) {
       await new Promise(r => setTimeout(r, 2_000))
 
@@ -245,7 +245,7 @@ export async function fetchDeadDrops(
       retryEvents.forEach(decryptEvent)
     }
   } catch {
-    // fetch failed — return whatever we collected
+    // fetch failed - return whatever we collected
   } finally {
     pool.close(liveRelays)
   }

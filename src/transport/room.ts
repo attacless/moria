@@ -56,7 +56,7 @@ export async function joinChatRoom(
       // Trystero's peer.mjs builds the RTCPeerConnection config as:
       //   { iceServers: defaultIceServers, ...rtcConfig }
       // Object spread means our iceServers key replaces the defaults entirely.
-      // Verified in @trystero-p2p/core/dist/peer.mjs — Google/Cloudflare STUN
+      // Verified in @trystero-p2p/core/dist/peer.mjs - Google/Cloudflare STUN
       // (the Trystero defaults) are not contacted when rtcConfig.iceServers is set.
       rtcConfig: {
         iceServers: [
@@ -90,17 +90,17 @@ export async function joinChatRoom(
 
   room.onPeerJoin((peerId) => {
     rawPeerCount++
-    callbacks.onPresenceJoin(peerId)   // immediate — peer is in room
+    callbacks.onPresenceJoin(peerId)   // immediate - peer is in room
 
     if (peers.size >= MAX_PEERS) {
       callbacks.onRoomFull()
-      return  // do not send pubkey — peer will not handshake
+      return  // do not send pubkey - peer will not handshake
     }
 
     if (sendPubkey && sessionKeys) {
       sendPubkey(sessionKeys.identity.publicKey, [peerId])
     }
-    // Do NOT call callbacks.onPeerJoin here — wait for crypto handshake
+    // Do NOT call callbacks.onPeerJoin here - wait for crypto handshake
   })
 
   // ── Pubkey receipt -> session key derivation ──────────────────────────────
@@ -108,7 +108,7 @@ export async function joinChatRoom(
   getPubkey((theirPubkey, peerId) => {
     if (!sessionKeys) return
 
-    // Coerce — arrives as ArrayBuffer over WebRTC data channel
+    // Coerce - arrives as ArrayBuffer over WebRTC data channel
     const pubkeyBytes = toBytes(theirPubkey)
 
     const sessionKey = derivePeerSessionKey(
@@ -122,7 +122,7 @@ export async function joinChatRoom(
       sessionKey,
     })
 
-    // Now the peer is crypto-confirmed — fire the callback
+    // Now the peer is crypto-confirmed - fire the callback
     callbacks.onPeerJoin(peerId)
   })
 
@@ -130,14 +130,14 @@ export async function joinChatRoom(
 
   getWire((wire, peerId) => {
     const peer = peers.get(peerId)
-    if (!peer) return  // no session key yet — drop
+    if (!peer) return  // no session key yet - drop
 
-    // Coerce — arrives as ArrayBuffer over WebRTC data channel
+    // Coerce - arrives as ArrayBuffer over WebRTC data channel
     const wireBytes = toBytes(wire)
 
     const msg = decryptMessage(wireBytes, peer.sessionKey)
-    if (!msg) return                  // auth failure — silently drop
-    if (msg.type === 'DECOY') return  // decoy — silently discard
+    if (!msg) return                  // auth failure - silently drop
+    if (msg.type === 'DECOY') return  // decoy - silently discard
 
     if (msg.type === 'TERMINATE') {
       callbacks.onTerminate(msg.alias)
@@ -187,7 +187,7 @@ export function sendChatMessage(
     body,
   }
 
-  // Encrypt separately for each peer and unicast — never broadcast raw key
+  // Encrypt separately for each peer and unicast - never broadcast raw key
   peers.forEach((peer, peerId) => {
     const encrypted = encryptMessage(wire, peer.sessionKey)
     sendWire!(encrypted, [peerId])
@@ -254,12 +254,12 @@ export function getRawPeerCount(): number   { return rawPeerCount }
 export function getPeerIds():      PeerId[] { return Array.from(peers.keys()) }
 export function isInRoom():        boolean  { return activeRoom !== null }
 
-// Raw wire sender — used by decoy engine
+// Raw wire sender - used by decoy engine
 export function sendRawWire(data: Uint8Array, targets: PeerId[]): void {
   if (sendWire) sendWire(data, targets)
 }
 
-// Peer session map accessor — used by decoy engine
+// Peer session map accessor - used by decoy engine
 export function getPeerSessions(): Map<PeerId, PeerSession> {
   return new Map(peers)
 }

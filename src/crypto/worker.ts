@@ -10,7 +10,7 @@ export type WorkerResponse = {
   result: Uint8Array
 }
 
-// Domain-separated salts — never reuse the same salt for both derivations
+// Domain-separated salts - never reuse the same salt for both derivations
 const SALTS: Record<WorkerRequest['type'], Uint8Array> = {
   'room-id':  new TextEncoder().encode('moria-room-id-v1-salt'),
   'room-key': new TextEncoder().encode('moria-room-key-v1-salt'),

@@ -21,7 +21,7 @@ function renderCoverPage(): void {
   // Remove security listeners before DOM replacement
   try { unmountSecurityMeasures() } catch (_) {}
 
-  // Notify React to clear state (no screen change — DOM replacement
+  // Notify React to clear state (no screen change - DOM replacement
   // happens after this so React output is immediately overwritten)
   try { panicCallback?.() } catch (_) {}
 

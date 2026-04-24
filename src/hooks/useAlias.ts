@@ -13,7 +13,7 @@ export function useAlias() {
   const [alias, setAlias] = useState<Alias>(generateAlias)
 
   // Call on room leave/rejoin to get a new alias
-  // There is no link between old and new alias — unlinkable by design
+  // There is no link between old and new alias - unlinkable by design
   const rotateAlias = useCallback(() => {
     setAlias(generateAlias())
   }, [])

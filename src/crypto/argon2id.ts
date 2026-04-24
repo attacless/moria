@@ -26,18 +26,18 @@ function deriveViaWorker(
   })
 }
 
-// Returns hex string — used as Trystero roomId. Safe to send over network.
+// Returns hex string - used as Trystero roomId. Safe to send over network.
 export async function deriveRoomId(password: string): Promise<string> {
   const bytes = await deriveViaWorker(password, 'room-id')
   return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-// Returns raw bytes — stays in browser RAM only. Never serialized.
+// Returns raw bytes - stays in browser RAM only. Never serialized.
 export async function deriveRoomKey(password: string): Promise<Uint8Array> {
   return deriveViaWorker(password, 'room-key')
 }
 
-// Returns hex string — used ONLY for dead drop 'r' tag.
+// Returns hex string - used ONLY for dead drop 'r' tag.
 // Deliberately different from roomId so Nostr relays
 // cannot correlate signaling traffic with dead drop events.
 export async function deriveDropId(password: string): Promise<string> {

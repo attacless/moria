@@ -71,7 +71,7 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
     >
       {mediaBlocked && (
         <div className="media-blocked-banner">
-          files and images cannot be sent — text only
+          files and images cannot be sent - text only
         </div>
       )}
       {dropError && (

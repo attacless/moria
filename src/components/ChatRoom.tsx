@@ -84,9 +84,9 @@ export function ChatRoom({
           <button
             className={`action-btn${clipboardEnabled ? ' clipboard-on' : ''}`}
             onClick={onToggleClipboard}
-            title={clipboardEnabled ? 'Clipboard enabled — click to disable' : 'Enable clipboard for this session'}
+            title={clipboardEnabled ? 'Clipboard enabled - click to disable' : 'Enable clipboard for this session'}
           >
-            {clipboardEnabled ? 'CLIP ON' : 'CLIP OFF'}
+            {clipboardEnabled ? 'CLIPBOARD ON' : 'CLIPBOARD OFF'}
           </button>
 
           <button className="action-btn leave" onClick={onLeave}>
@@ -111,14 +111,14 @@ export function ChatRoom({
             <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
             <rect x="9" y="3" width="6" height="4" rx="1"/>
           </svg>
-          clipboard enabled — auto-clears after 15 seconds
+          clipboard enabled - auto-clears after 15 seconds
         </div>
       )}
 
       {/* Room full banner */}
       {roomFull && (
         <div className="room-banner red">
-          room is full — 50 participant limit reached
+          room is full - 50 participant limit reached
         </div>
       )}
 

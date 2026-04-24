@@ -4,8 +4,8 @@ export type Alias  = string          // 8-char hex, ephemeral per session
 export type HexStr = string
 
 export interface SessionKeys {
-  roomId:   RoomId     // Argon2id output — used for Trystero signaling
-  dropId:   string     // Argon2id output — used for dead drop r tag ONLY
+  roomId:   RoomId     // Argon2id output - used for Trystero signaling
+  dropId:   string     // Argon2id output - used for dead drop r tag ONLY
   roomKey:  Uint8Array // 32-byte symmetric key (never leaves browser)
   identity: {
     publicKey:  Uint8Array           // X25519 pubkey (shared with peers)

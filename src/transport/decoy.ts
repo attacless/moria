@@ -31,7 +31,7 @@ export function startDecoyEngine(
           const decoy = encryptDecoy(peer.sessionKey)
           sendFn(decoy, [peerId])
         } catch {
-          // Peer may have disconnected between check and send — ignore
+          // Peer may have disconnected between check and send - ignore
         }
       })
     }

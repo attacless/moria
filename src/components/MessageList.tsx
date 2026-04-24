@@ -99,7 +99,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
                     {msg.queuedStatus === 'sending' && 'sending...'}
                     {msg.queuedStatus === 'queued' && msg.queuedExpiresAt &&
                       `queued · expires ${formatTTL(msg.queuedExpiresAt)}`}
-                    {msg.queuedStatus === 'failed' && 'failed — try again'}
+                    {msg.queuedStatus === 'failed' && 'failed - try again'}
                   </span>
                 )}
               </div>

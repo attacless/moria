@@ -40,7 +40,7 @@ export function useRoom() {
   const { messages, addMessage, addMessages, clearMessages, burnSecondsRemaining, confirmDeadDrop, autoConfirmDeadDrops, confirmAllDeadDrops, removeByAlias, extendBurnTimers, updateMessageStatus, clearQueuedStatus } = useMessages()
   const { alias, rotateAlias } = useAlias()
 
-  // Stable ref to messages for queued message dedup — reads latest value at setTimeout fire time
+  // Stable ref to messages for queued message dedup - reads latest value at setTimeout fire time
   const messagesRef = useRef<DisplayMessage[]>([])
   useEffect(() => { messagesRef.current = messages }, [messages])
 
@@ -77,7 +77,7 @@ export function useRoom() {
         },
 
         onPresenceJoin: (_peerId: PeerId) => {
-          setPresenceCount(getRawPeerCount())   // raw presence — immediate
+          setPresenceCount(getRawPeerCount())   // raw presence - immediate
         },
 
         onPresenceLeave: (_peerId: PeerId) => {
@@ -124,7 +124,7 @@ export function useRoom() {
               isMine:     false,
               isDeadDrop: true,
               confirmed:  false,
-              // No burnAt yet — starts only when MARK READ pressed or peer joins
+              // No burnAt yet - starts only when MARK READ pressed or peer joins
             }))
 
           if (dropMessages.length > 0) addMessages(dropMessages)
@@ -156,11 +156,11 @@ export function useRoom() {
       return
     }
 
-    // No peers online — queue message on Nostr relay
+    // No peers online - queue message on Nostr relay
     const keys = sessionRef.current
     if (!keys) return
 
-    // Optimistic message — shows "sending..." immediately
+    // Optimistic message - shows "sending..." immediately
     const optimisticId = crypto.randomUUID()
     addMessage({
       id:           optimisticId,
@@ -177,12 +177,12 @@ export function useRoom() {
     if (!result.success) {
       updateMessageStatus(optimisticId, { queuedStatus: 'failed' })
       const msg = result.reason === 'rate_limited'
-        ? 'slow down — wait a moment before queuing again'
+        ? 'slow down - wait a moment before queuing again'
         : result.reason === 'no_relays'
-          ? 'no relays reachable — message not queued'
+          ? 'no relays reachable - message not queued'
           : result.reason === 'too_large'
             ? 'message too large to queue'
-            : 'queue failed — try again'
+            : 'queue failed - try again'
       setDropError(msg)
       return
     }
@@ -263,7 +263,7 @@ export function useRoom() {
     // rotateAlias() is intentionally omitted here. document.open() in usePanic
     // destroys the React tree before any state update can flush. Alias
     // unlinkability on the next session is guaranteed by useAlias calling
-    // useState(generateAlias) — the initializer runs fresh on every mount.
+    // useState(generateAlias) - the initializer runs fresh on every mount.
     setScreen('entry')
   }, [clearMessages])
 
