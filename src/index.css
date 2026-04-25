@@ -727,26 +727,15 @@ input, textarea { font-family: var(--font-body); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 3px;
+  gap: 8px;
+  margin-bottom: 4px;
 }
-
-.msg-alias {
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  color: var(--text-muted);
-  letter-spacing: 0.04em;
-}
-
-/* Own messages: alias is redundant — you know it's you */
-.message.own .msg-alias      { display: none; }
-.message.own .msg-meta       { justify-content: flex-end; }
 
 .msg-time {
   font-family: var(--font-mono);
-  font-size: 0.52rem;
-  color: var(--text-muted);
-  letter-spacing: 0.04em;
+  font-size: 10px;
+  color: rgba(240, 248, 255, 0.25);
+  letter-spacing: 0.5px;
 }
 
 .msg-body {
@@ -762,44 +751,33 @@ input, textarea { font-family: var(--font-body); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 6px;
+  margin-top: 4px;
   gap: 8px;
 }
 
-/* Burn timer — floating above the bubble at top-right, both own and received */
+/* Burn timer — inline inside the meta row, right side */
 .burn-timer {
-  position: absolute;
-  top: -8px;
-  right: 12px;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.5px;
-  color: rgba(240, 248, 255, 0.35);
-  background: none;
-  padding: 0;
-  border-radius: 0;
-  line-height: 1;
-  z-index: 1;
+  color: rgba(240, 248, 255, 0.25);
   white-space: nowrap;
   transition: color 0.3s;
-  pointer-events: none;
 }
 .burn-timer.warning  { color: var(--amber); }
 .burn-timer.critical { color: var(--red); animation: burnPulse 1s ease infinite; }
 
-/* Dead drop labels */
-.drop-label {
+/* Message status text — plain, no border or background */
+.msg-status {
   font-family: var(--font-mono);
-  font-size: 0.52rem;
-  letter-spacing: 0.06em;
+  font-size: 10px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
-  padding: 2px 6px;
-  border-radius: 2px;
+  color: rgba(240, 248, 255, 0.3);
+  line-height: 1;
 }
-.drop-label.queued  { color: var(--text-secondary); background: var(--accent-dim); }
-.drop-label.waiting { color: var(--amber); background: var(--amber-dim); }
-.drop-label.sending { color: var(--text-muted); }
-.drop-label.failed  { color: var(--red); background: var(--red-dim); }
+.msg-status.failed  { color: rgba(220, 70, 60, 0.8); }
+.msg-status.waiting { color: rgba(240, 248, 255, 0.25); }
 
 /* Mark read button */
 .mark-read-btn {

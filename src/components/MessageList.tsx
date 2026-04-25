@@ -74,42 +74,35 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
             className={`message fade-in ${isMe ? 'own' : 'received'}`}
             style={{ opacity, transition }}
           >
-            {/* Meta row: alias + time + drop badge */}
+            {/* Meta row: timestamp (left) + burn timer (right) — no alias */}
             <div className="msg-meta">
-              <span className="msg-alias">{msg.alias}</span>
               <span className="msg-time">{formatTime(msg.timestamp)}</span>
+              {burn !== null && !(isMe && msg.queuedStatus) && (
+                <span className={`burn-timer ${getBurnClass(burn)}`}>
+                  {formatBurn(burn)}
+                </span>
+              )}
             </div>
 
             {/* Body */}
             <div className="msg-body">{msg.body}</div>
 
-            {/* Burn timer — absolute overlay badge, top-right corner */}
-            {burn !== null && !(isMe && msg.queuedStatus) && (
-              <span className={`burn-timer ${getBurnClass(burn)}`}>
-                {formatBurn(burn)}
-              </span>
-            )}
-
-            {/* Footer: dead drop controls / queued status / mark read */}
+            {/* Footer: status text + mark read */}
             <div className="msg-footer">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {/* Dead drop badge */}
-                {msg.isDeadDrop && (isMe ? !!msg.queuedStatus : !msg.confirmed) && (
-                  <span className={`drop-label ${isMe ? 'queued' : 'waiting'}`}>
-                    {isMe ? 'queued' : 'waiting'}
-                  </span>
-                )}
+              {/* Own message status — failed takes priority, expiry replaces standalone queued badge */}
+              {isMe && msg.queuedStatus && (
+                <span className={`msg-status ${msg.queuedStatus}`}>
+                  {msg.queuedStatus === 'failed'  && 'failed · try again'}
+                  {msg.queuedStatus === 'sending' && 'sending...'}
+                  {msg.queuedStatus === 'queued'  && msg.queuedExpiresAt &&
+                    `queued · expires ${formatTTL(msg.queuedExpiresAt)}`}
+                </span>
+              )}
 
-                {/* Sender queued status */}
-                {isMe && msg.queuedStatus && (
-                  <span className={`drop-label ${msg.queuedStatus}`}>
-                    {msg.queuedStatus === 'sending' && 'sending...'}
-                    {msg.queuedStatus === 'queued' && msg.queuedExpiresAt &&
-                      `queued · expires ${formatTTL(msg.queuedExpiresAt)}`}
-                    {msg.queuedStatus === 'failed' && 'failed - try again'}
-                  </span>
-                )}
-              </div>
+              {/* Received dead drop — waiting for peer to confirm */}
+              {!isMe && msg.isDeadDrop && !msg.confirmed && (
+                <span className="msg-status waiting">waiting</span>
+              )}
 
               {/* Mark read button */}
               {showMarkRead && (
