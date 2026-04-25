@@ -490,78 +490,11 @@ details summary:hover .chevron  { color: var(--text-secondary); }
   </div>
 
   <div class="section">
-    <div class="section-label">03 - What Each Party Sees</div>
+    <div class="section-label">03 - What does Moria see</div>
 
-    <details>
-      <summary>
-        <span class="question">What does the Nostr relay network see?</span>
-        <span class="chevron">&#x25BE;</span>
-      </summary>
-      <div class="answer">
-        <p>Nostr relays are used for two purposes: WebRTC peer discovery
-        (signaling) and dead drop storage. Here is exactly what they see:</p>
-        <div class="data-block">
-          <div class="data-row">
-            <div class="data-key">Signaling (SDP)</div>
-            <div class="data-val">Encrypted WebRTC session negotiation data only. Not readable without your session keys.</div>
-          </div>
-          <div class="data-row">
-            <div class="data-key">Dead drop content</div>
-            <div class="data-val">ChaCha20-Poly1305 ciphertext. Unreadable without the room key.</div>
-          </div>
-          <div class="data-row">
-            <div class="data-key">Room ID tag</div>
-            <div class="data-val">Two independent Argon2id-derived hashes of your password - one for peer discovery, one for message storage. Relays cannot link the two without knowing your shared secret.</div>
-          </div>
-          <div class="data-row">
-            <div class="data-key">Event timestamp</div>
-            <div class="data-val">When the dead drop was published. Accurate to the second.</div>
-          </div>
-          <div class="data-row">
-            <div class="data-key">Your IP address</div>
-            <div class="data-val hl-amber">Visible to relay operators unless you use a VPN or Tor.</div>
-          </div>
-          <div class="data-row">
-            <div class="data-key">Message content</div>
-            <div class="data-val hl-green">Never. All content is encrypted before leaving your device.</div>
-          </div>
-          <div class="data-row">
-            <div class="data-key">Your identity</div>
-            <div class="data-val hl-green">Never. No accounts, no persistent identifiers.</div>
-          </div>
-        </div>
-      </div>
-    </details>
-
-    <details>
-      <summary>
-        <span class="question">What does your peer see?</span>
-        <span class="chevron">&#x25BE;</span>
-      </summary>
-      <div class="answer">
-        <p>Your peer sees your messages after decryption, your ephemeral
-        session alias (a random 8-character hex code generated fresh each
-        session), and your presence in the room. Your peer also sees your
-        public IP address via WebRTC ICE candidates exchanged during
-        connection setup - this is a fundamental property of WebRTC direct
-        connections. A VPN will show your VPN exit IP instead of your real
-        IP address. Tor Browser prevents IP disclosure entirely but may
-        affect connection reliability.</p>
-      </div>
-    </details>
-
-    <details>
-      <summary>
-        <span class="question">What does Moria see?</span>
-        <span class="chevron">&#x25BE;</span>
-      </summary>
-      <div class="answer">
-        <p>Nothing. Moria has no server, no database, no logging
-        infrastructure, and no analytics. The app is a static file
-        served by Cloudflare Pages. We have no mechanism to identify
-        you, read your messages, or track your sessions.</p>
-      </div>
-    </details>
+    <p>Nothing. Moria has no server, no database, no logging infrastructure,
+    and no analytics. We have no mechanism to identify you, read your
+    messages, or track your sessions.</p>
   </div>
 
   <div class="section">
