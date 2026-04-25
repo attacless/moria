@@ -56,7 +56,7 @@
    ═══════════════════════════════════ */
 :root {
   --bg:               #050505;
-  --bg-chat:          #0a0a0a;
+  --bg-chat:          #050505;
   --surface:          #111111;
   --surface-raised:   #181818;
   --surface-hover:    #1c1c1c;
@@ -529,6 +529,16 @@ input, textarea { font-family: var(--font-body); }
   white-space: nowrap;
 }
 
+.header-wordmark {
+  font-family: var(--font-hero);
+  font-weight: 500;
+  font-size: 0.72rem;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  color: rgba(240, 248, 255, 0.5);
+  white-space: nowrap;
+}
+
 .peer-indicator {
   display: flex;
   align-items: center;
@@ -676,30 +686,41 @@ input, textarea { font-family: var(--font-body); }
   padding: 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 14px;
   scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(240, 248, 255, 0.08) transparent;
 }
 
+.messages-area::-webkit-scrollbar              { width: 2px; }
+.messages-area::-webkit-scrollbar-track        { background: transparent; }
+.messages-area::-webkit-scrollbar-thumb        { background: rgba(240, 248, 255, 0.08); border-radius: 1px; }
+.messages-area::-webkit-scrollbar-thumb:hover  { background: rgba(240, 248, 255, 0.15); }
+
+
 .message {
-  max-width: 68%;
-  padding: 11px 16px;
-  border-radius: 8px;
+  max-width: 75%;
+  padding: 14px 14px 10px;
+  border-radius: 16px;
   animation: msgAppear 0.2s ease;
   position: relative;
+  margin-top: 8px;
 }
 
 .message.own {
   align-self: flex-end;
-  background: var(--own-msg-bg);
-  border: 1px solid var(--own-msg-border);
-  box-shadow: 0 4px 24px var(--own-msg-glow), inset 0 1px 0 rgba(240,248,255,0.04);
+  background: rgba(240, 248, 255, 0.07);
+  border: none;
+  border-radius: 16px 16px 4px 16px;
+  box-shadow: none;
 }
 
 .message.received {
   align-self: flex-start;
-  background: var(--recv-msg-bg);
-  border: 1px solid var(--recv-msg-border);
-  box-shadow: 0 4px 24px var(--recv-msg-glow), inset 0 1px 0 rgba(240,248,255,0.03);
+  background: rgba(240, 248, 255, 0.04);
+  border: none;
+  border-radius: 16px 16px 16px 4px;
+  box-shadow: none;
 }
 
 .msg-meta {
@@ -707,7 +728,7 @@ input, textarea { font-family: var(--font-body); }
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 5px;
+  margin-bottom: 3px;
 }
 
 .msg-alias {
@@ -716,6 +737,10 @@ input, textarea { font-family: var(--font-body); }
   color: var(--text-muted);
   letter-spacing: 0.04em;
 }
+
+/* Own messages: alias is redundant — you know it's you */
+.message.own .msg-alias      { display: none; }
+.message.own .msg-meta       { justify-content: flex-end; }
 
 .msg-time {
   font-family: var(--font-mono);
@@ -741,12 +766,23 @@ input, textarea { font-family: var(--font-body); }
   gap: 8px;
 }
 
+/* Burn timer — floating above the bubble at top-right, both own and received */
 .burn-timer {
+  position: absolute;
+  top: -8px;
+  right: 12px;
   font-family: var(--font-mono);
-  font-size: 0.52rem;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: rgba(240, 248, 255, 0.35);
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  line-height: 1;
+  z-index: 1;
+  white-space: nowrap;
   transition: color 0.3s;
+  pointer-events: none;
 }
 .burn-timer.warning  { color: var(--amber); }
 .burn-timer.critical { color: var(--red); animation: burnPulse 1s ease infinite; }
@@ -1189,7 +1225,7 @@ input, textarea { font-family: var(--font-body); }
   .room-id      { font-size: 0.65rem; }
 
   .messages-area { padding: 12px 14px; }
-  .message      { max-width: 85%; padding: 9px 12px; }
+  .message      { max-width: 85%; padding: 8px 12px; }
   .msg-body     { font-size: 0.8rem; }
 
   .input-bar    { padding: 8px 12px; gap: 6px; }

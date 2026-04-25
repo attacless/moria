@@ -50,9 +50,11 @@ export function ChatRoom({
     setTerminating(false)
   }
 
-  const roomDisplay = roomId.length >= 8
+  // roomId retained for potential future use (e.g. copy-to-clipboard, share link)
+  const _roomDisplay = roomId.length >= 8
     ? `${roomId.slice(0, 4)}·${roomId.slice(4, 8)}`
     : roomId
+  void _roomDisplay
 
   const peerDotClass = peerCount > 0 ? 'active'
     : presenceCount > 0 ? 'connecting'
@@ -71,14 +73,12 @@ export function ChatRoom({
       {/* Header */}
       <div className="chat-header">
         <div className="header-left">
-          <span className="room-id">{roomDisplay}</span>
+          <span className="header-wordmark">MORIA</span>
           <div className="peer-indicator">
             <div className={`peer-dot ${peerDotClass}`} />
             <span className="peer-label">{peerLabel}</span>
           </div>
         </div>
-
-        <div className="header-center">MORIA</div>
 
         <div className="header-actions">
           <button

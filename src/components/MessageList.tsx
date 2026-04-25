@@ -83,7 +83,14 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
             {/* Body */}
             <div className="msg-body">{msg.body}</div>
 
-            {/* Footer: burn timer / dead drop controls / queued status */}
+            {/* Burn timer — absolute overlay badge, top-right corner */}
+            {burn !== null && !(isMe && msg.queuedStatus) && (
+              <span className={`burn-timer ${getBurnClass(burn)}`}>
+                {formatBurn(burn)}
+              </span>
+            )}
+
+            {/* Footer: dead drop controls / queued status / mark read */}
             <div className="msg-footer">
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {/* Dead drop badge */}
@@ -104,24 +111,15 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
                 )}
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {/* Mark read button */}
-                {showMarkRead && (
-                  <button
-                    className="mark-read-btn"
-                    onClick={() => onConfirmDeadDrop(msg.id)}
-                  >
-                    MARK READ
-                  </button>
-                )}
-
-                {/* Burn timer */}
-                {burn !== null && !(isMe && msg.queuedStatus) && (
-                  <span className={`burn-timer ${getBurnClass(burn)}`}>
-                    {formatBurn(burn)}
-                  </span>
-                )}
-              </div>
+              {/* Mark read button */}
+              {showMarkRead && (
+                <button
+                  className="mark-read-btn"
+                  onClick={() => onConfirmDeadDrop(msg.id)}
+                >
+                  MARK READ
+                </button>
+              )}
             </div>
           </div>
         )
