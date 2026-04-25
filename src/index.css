@@ -124,9 +124,6 @@ html, body, #root {
 button { cursor: pointer; font-family: var(--font-body); }
 input, textarea { font-family: var(--font-body); }
 
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(240,248,255,0.08); border-radius: 2px; }
 
 /* iOS safe areas */
 @supports (padding: env(safe-area-inset-bottom)) {
@@ -532,14 +529,6 @@ input, textarea { font-family: var(--font-body); }
   white-space: nowrap;
 }
 
-.room-id {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
 .header-wordmark {
   font-family: var(--font-hero);
   font-weight: 500;
@@ -572,19 +561,6 @@ input, textarea { font-family: var(--font-body); }
   letter-spacing: 0.06em;
   color: var(--text-muted);
   white-space: nowrap;
-}
-
-.header-center {
-  font-family: var(--font-hero);
-  font-weight: 500;
-  font-size: 0.65rem;
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  text-indent: 0.32em;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
 }
 
 .header-actions {
@@ -800,7 +776,7 @@ input, textarea { font-family: var(--font-body); }
   border: none;
   border-radius: 0;
   padding: 0;
-  color: rgba(240, 248, 255, 0.35);
+  color: rgba(240, 248, 255, 0.3);
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.5px;
@@ -1213,10 +1189,8 @@ input, textarea { font-family: var(--font-body); }
   .password-input { padding: 12px 44px 12px 14px; font-size: 16px; } /* prevent iOS Safari auto-zoom */
 
   .chat-header  { padding: 10px 14px; }
-  .header-center { display: none; }
   .header-actions { gap: 3px; }
   .action-btn   { padding: 4px 7px; font-size: 0.52rem; }
-  .room-id      { font-size: 0.65rem; }
 
   .messages-area { padding: 12px 14px; }
   .message      { max-width: 85%; padding: 8px 12px; }
