@@ -43,6 +43,16 @@ export function ChatRoom({
   onToggleClipboard,
 }: ChatRoomProps) {
   const [terminating, setTerminating] = useState(false)
+  const [clipboardFlash, setClipboardFlash] = useState(false)
+
+  function handleToggleClipboard() {
+    const turningOn = !clipboardEnabled
+    onToggleClipboard()
+    if (turningOn) {
+      setClipboardFlash(true)
+      setTimeout(() => setClipboardFlash(false), 2000)
+    }
+  }
 
   async function handleTerminate() {
     setTerminating(true)
@@ -50,11 +60,9 @@ export function ChatRoom({
     setTerminating(false)
   }
 
-  // roomId retained for potential future use (e.g. copy-to-clipboard, share link)
-  const _roomDisplay = roomId.length >= 8
-    ? `${roomId.slice(0, 4)}·${roomId.slice(4, 8)}`
+  const roomDisplay = roomId.length >= 8
+    ? roomId.slice(0, 8)
     : roomId
-  void _roomDisplay
 
   const peerDotClass = peerCount > 0 ? 'active'
     : presenceCount > 0 ? 'connecting'
@@ -73,7 +81,12 @@ export function ChatRoom({
       {/* Header */}
       <div className="chat-header">
         <div className="header-left">
-          <span className="header-wordmark">MORIA</span>
+          {/* Centered brand block: MORIA + hash stacked */}
+          <div className="header-brand">
+            <span className="header-wordmark">MORIA</span>
+            <span className="room-hash">{roomDisplay}</span>
+          </div>
+          {/* Peer status to the right of the brand */}
           <div className="peer-indicator">
             <div className={`peer-dot ${peerDotClass}`} />
             <span className="peer-label">{peerLabel}</span>
@@ -83,10 +96,11 @@ export function ChatRoom({
         <div className="header-actions">
           <button
             className={`action-btn${clipboardEnabled ? ' clipboard-on' : ''}`}
-            onClick={onToggleClipboard}
+            onClick={handleToggleClipboard}
             title={clipboardEnabled ? 'Clipboard enabled - click to disable' : 'Enable clipboard for this session'}
+            style={clipboardFlash ? { color: 'rgba(200,170,80,1)', borderColor: 'rgba(200,170,80,0.4)', background: 'rgba(200,170,80,0.1)' } : undefined}
           >
-            {clipboardEnabled ? 'CLIPBOARD ON' : 'CLIPBOARD OFF'}
+            {clipboardFlash ? '✓' : clipboardEnabled ? 'CLIPBOARD ON' : 'CLIPBOARD OFF'}
           </button>
 
           <button className="action-btn leave" onClick={onLeave}>
@@ -103,17 +117,6 @@ export function ChatRoom({
           </button>
         </div>
       </div>
-
-      {/* Clipboard banner */}
-      {clipboardEnabled && (
-        <div className="room-banner amber">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="banner-icon">
-            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
-            <rect x="9" y="3" width="6" height="4" rx="1"/>
-          </svg>
-          clipboard enabled - auto-clears after 15 seconds
-        </div>
-      )}
 
       {/* Room full banner */}
       {roomFull && (

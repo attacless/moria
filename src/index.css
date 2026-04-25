@@ -489,12 +489,6 @@ input, textarea { font-family: var(--font-body); }
   animation: bannerSlide 0.3s var(--ease-out);
 }
 
-.room-banner.amber {
-  background: var(--amber-dim);
-  border-bottom: 1px solid var(--amber-border);
-  color: var(--amber);
-}
-
 .room-banner.red {
   background: var(--red-dim);
   border-bottom: 1px solid var(--red-border);
@@ -516,9 +510,26 @@ input, textarea { font-family: var(--font-body); }
 
 .header-left {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 12px;
   min-width: 0;
+}
+
+/* Centered brand column: MORIA on top, room hash below */
+.header-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.room-hash {
+  font-family: var(--font-body);
+  font-size: 9px;
+  color: rgba(240, 248, 255, 0.15);
+  letter-spacing: 1px;
+  white-space: nowrap;
 }
 
 .room-id {
@@ -726,9 +737,7 @@ input, textarea { font-family: var(--font-body); }
 .msg-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .msg-time {
@@ -755,13 +764,19 @@ input, textarea { font-family: var(--font-body); }
   gap: 8px;
 }
 
-/* Burn timer — inline inside the meta row, right side */
+/* Burn timer — absolute overlay, top-right of bubble */
 .burn-timer {
+  position: absolute;
+  top: -8px;
+  right: 12px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.5px;
-  color: rgba(240, 248, 255, 0.25);
+  color: rgba(240, 248, 255, 0.35);
   white-space: nowrap;
+  line-height: 1;
+  z-index: 1;
+  pointer-events: none;
   transition: color 0.3s;
 }
 .burn-timer.warning  { color: var(--amber); }
@@ -779,21 +794,22 @@ input, textarea { font-family: var(--font-body); }
 .msg-status.failed  { color: rgba(220, 70, 60, 0.8); }
 .msg-status.waiting { color: rgba(240, 248, 255, 0.25); }
 
-/* Mark read button */
+/* Mark read button — plain text, no border or background */
 .mark-read-btn {
   background: none;
-  border: 1px solid var(--border-focus);
-  border-radius: 2px;
-  color: var(--text-secondary);
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  color: rgba(240, 248, 255, 0.35);
   font-family: var(--font-mono);
-  font-size: 0.5rem;
-  letter-spacing: 0.06em;
+  font-size: 10px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
-  padding: 2px 7px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color 0.2s;
+  line-height: 1;
 }
-.mark-read-btn:hover { background: var(--accent-dim); color: var(--text-primary); }
+.mark-read-btn:hover { background: none; color: rgba(240, 248, 255, 0.6); }
 
 .system-msg {
   text-align: center;
