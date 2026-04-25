@@ -1,73 +1,32 @@
-# React + TypeScript + Vite
+# Moria
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Anonymous encrypted peer-to-peer chat. No accounts. No servers. Nothing is stored. Nothing survives.
 
-Currently, two official plugins are available:
+https://moria.chat
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Architecture
 
-## React Compiler
+- **Live chat**: WebRTC peer-to-peer via Trystero (Nostr signaling). Messages never touch a server.
+- **Dead drop**: Encrypted blobs published to decentralized Nostr relay pool. 24h TTL, NIP-09 deletion.
+- **Encryption**: ChaCha20-Poly1305 with per-session ephemeral keys (X25519 ECDH + HKDF-SHA256).
+- **Key derivation**: Argon2id (16 MiB, 3 iterations) from shared secret.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Traffic Analysis Resistance
 
-## Expanding the ESLint configuration
+- Fixed 8,192-byte message padding with random noise fill
+- Timestamp rounding to 60-second granularity
+- Encrypted chaff traffic at random 10-60 second intervals
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Security Features
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- Panic wipe (ESC x 3): zeros keys, clears storage, replaces DOM
+- Steganographic mode (Shift x 5): disguises interface as document editor
+- Tiered self-destruct timers on all messages
+- Clipboard auto-clear, selection blocking, screenshot interception
+- Inactivity timeout with auto-disconnect
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Stack
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+React 19, TypeScript, Vite, Tailwind
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Deployment
