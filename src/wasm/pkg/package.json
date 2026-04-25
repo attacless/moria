@@ -1,0 +1,15 @@
+{
+  "name": "moria-crypto",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "moria_crypto_bg.wasm",
+    "moria_crypto.js",
+    "moria_crypto.d.ts"
+  ],
+  "main": "moria_crypto.js",
+  "types": "moria_crypto.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

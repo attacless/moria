@@ -11,7 +11,7 @@
   Cache-Control: public, max-age=86400
 
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://*; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://*; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
   Cross-Origin-Embedder-Policy: credentialless
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin

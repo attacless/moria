@@ -1,7 +1,7 @@
 import { joinRoom } from 'trystero/nostr'
 import type { Room, ActionSender } from 'trystero'
-import { derivePeerSessionKey, destroyIdentity, destroyPeerSession } from '@crypto/x25519'
-import { encryptMessage, decryptMessage, roundTimestamp } from '@crypto/chacha20'
+import { syncDerivePeerSessionKey, syncDecrypt, syncEncrypt, destroyIdentity, destroyPeerSession } from '@/wasm'
+import { roundTimestamp } from '@crypto/chacha20'
 import { resetDeadDropRateLimits } from './deadDrop'
 import type { SessionKeys, PeerSession, PeerId, WireMessage, DisplayMessage, Alias } from '@/types'
 
@@ -119,19 +119,23 @@ export async function joinChatRoom(
     // Coerce - arrives as ArrayBuffer over WebRTC data channel
     const pubkeyBytes = toBytes(theirPubkey)
 
-    const sessionKey = derivePeerSessionKey(
-      sessionKeys.identity.privateKey,
-      pubkeyBytes
-    )
+    try {
+      const sessionKey = syncDerivePeerSessionKey(
+        sessionKeys.identity.privateKey,
+        pubkeyBytes
+      )
 
-    peers.set(peerId, {
-      peerId,
-      publicKey:  pubkeyBytes,
-      sessionKey,
-    })
+      peers.set(peerId, {
+        peerId,
+        publicKey:  pubkeyBytes,
+        sessionKey,
+      })
 
-    // Now the peer is crypto-confirmed - fire the callback
-    callbacks.onPeerJoin(peerId)
+      // Now the peer is crypto-confirmed - fire the callback
+      callbacks.onPeerJoin(peerId)
+    } catch (err) {
+      console.error('[room] key derivation failed for peer', peerId, err)
+    }
   })
 
   // ── Wire receipt -> decrypt -> display ───────────────────────────────────
@@ -143,7 +147,7 @@ export async function joinChatRoom(
     // Coerce - arrives as ArrayBuffer over WebRTC data channel
     const wireBytes = toBytes(wire)
 
-    const msg = decryptMessage(wireBytes, peer.sessionKey)
+    const msg = syncDecrypt(wireBytes, peer.sessionKey)
     if (!msg) return                  // auth failure - silently drop
     if (msg.type === 'DECOY') return  // decoy - silently discard
 
@@ -197,8 +201,12 @@ export function sendChatMessage(
 
   // Encrypt separately for each peer and unicast - never broadcast raw key
   peers.forEach((peer, peerId) => {
-    const encrypted = encryptMessage(wire, peer.sessionKey)
-    sendWire!(encrypted, [peerId])
+    try {
+      const encrypted = syncEncrypt(wire, peer.sessionKey)
+      sendWire!(encrypted, [peerId])
+    } catch (err) {
+      console.error('[room] encrypt failed for peer', peerId, err)
+    }
   })
 
   return {
@@ -247,9 +255,11 @@ export function terminateAndLeave(alias: Alias): void {
     }
     peers.forEach((peer, peerId) => {
       try {
-        const encrypted = encryptMessage(wire, peer.sessionKey)
+        const encrypted = syncEncrypt(wire, peer.sessionKey)
         sendWire!(encrypted, [peerId])
-      } catch (_) {}
+      } catch (_) {
+        // best-effort - peer may have disconnected
+      }
     })
   }
   leaveRoom()

@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { deriveRoomId, deriveRoomKey, deriveDropId } from '@crypto/argon2id'
-import { generateIdentity } from '@crypto/x25519'
+import { deriveRoomId, deriveRoomKey, deriveDropId, generateIdentity } from '@/wasm'
 import {
   joinChatRoom,
   leaveRoom,
@@ -57,7 +56,7 @@ export function useRoom() {
         deriveDropId(password),
       ])
 
-      const identity = generateIdentity()
+      const identity = await generateIdentity()
       const keys: SessionKeys = { roomId, dropId, roomKey, identity }
       sessionRef.current = keys
 

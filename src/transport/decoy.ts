@@ -1,5 +1,6 @@
-import { encryptDecoy } from '@crypto/chacha20'
-import type { PeerId, PeerSession } from '@/types'
+import { encryptMessage } from '@/wasm'
+import { roundTimestamp } from '@crypto/chacha20'
+import type { WireMessage, PeerId, PeerSession } from '@/types'
 
 type PeerMap = Map<PeerId, PeerSession>
 type SendFn  = (data: Uint8Array, targets: PeerId[]) => void
@@ -27,12 +28,18 @@ export function startDecoyEngine(
 
     if (peers.size > 0) {
       peers.forEach((peer, peerId) => {
-        try {
-          const decoy = encryptDecoy(peer.sessionKey)
-          sendFn(decoy, [peerId])
-        } catch {
-          // Peer may have disconnected between check and send - ignore
+        const decoy: WireMessage = {
+          type:      'DECOY',
+          alias:     '00000000',
+          timestamp: roundTimestamp(Date.now()),
+          body:      '',
         }
+        // Fire-and-forget: encryptMessage is async but we don't block the timer
+        encryptMessage(decoy, peer.sessionKey)
+          .then(data => sendFn(data, [peerId]))
+          .catch(() => {
+            // Peer may have disconnected between check and send - ignore
+          })
       })
     }
 

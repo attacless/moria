@@ -1,5 +1,6 @@
 import { generateSecretKey, finalizeEvent, SimplePool } from 'nostr-tools'
-import { encryptMessage, decryptMessage, roundTimestamp } from '@crypto/chacha20'
+import { encryptMessage, decryptMessage } from '@/wasm'
+import { roundTimestamp } from '@crypto/chacha20'
 import type { WireMessage, Alias } from '@/types'
 
 // Larger pool - more fallbacks if individual relays are down
@@ -87,7 +88,7 @@ export async function publishDeadDrop(
     body,
   }
 
-  const encrypted = encryptMessage(wire, roomKey)
+  const encrypted = await encryptMessage(wire, roomKey)
   const b64 = btoa(
     Array.from(encrypted, b => String.fromCharCode(b)).join('')
   )
@@ -196,7 +197,7 @@ export async function fetchDeadDrops(
     since: now - DROP_TTL_S,
   }
 
-  function decryptEvent(event: { id: string; content: string; tags: string[][] }): void {
+  async function decryptEvent(event: { id: string; content: string; tags: string[][] }): Promise<void> {
     if (seen.has(event.id)) return
 
     const expiryTag = event.tags.find(t => t[0] === 'expiration')
@@ -206,7 +207,7 @@ export async function fetchDeadDrops(
 
     try {
       const bytes     = Uint8Array.from(atob(event.content), c => c.charCodeAt(0))
-      const decrypted = decryptMessage(bytes, roomKey)
+      const decrypted = await decryptMessage(bytes, roomKey)
       if (!decrypted || decrypted.type === 'DECOY') return
 
       results.push({
@@ -229,7 +230,7 @@ export async function fetchDeadDrops(
       ),
     ])
 
-    events.forEach(decryptEvent)
+    await Promise.all(events.map(decryptEvent))
 
     // If empty, wait 2s and retry once - relay propagation delay
     if (results.length === 0 && events.length === 0) {
@@ -242,7 +243,7 @@ export async function fetchDeadDrops(
         ),
       ]).catch(() => [] as Awaited<ReturnType<typeof pool.querySync>>)
 
-      retryEvents.forEach(decryptEvent)
+      await Promise.all(retryEvents.map(decryptEvent))
     }
   } catch {
     // fetch failed - return whatever we collected

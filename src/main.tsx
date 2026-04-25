@@ -1,6 +1,9 @@
 import './index.css'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { initCrypto } from './wasm'
+
+initCrypto().catch(console.error)
 
 // ── bfcache defense ──────────────────────────────────────────
 // If browser restores page from cache (back button),
