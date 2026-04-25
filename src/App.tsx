@@ -31,7 +31,6 @@ export default function App() {
     dropError,
     clearDropError,
     confirmDeadDrop,
-    confirmAllDeadDrops,
     rateLimited,
     roomFull,
     clipboardEnabled,
@@ -129,7 +128,6 @@ export default function App() {
               onLeave={handleLeave}
               onTerminate={terminate}
               onConfirmDeadDrop={confirmDeadDrop}
-              onConfirmAll={confirmAllDeadDrops}
               dropError={dropError}
               onClearError={clearDropError}
               rateLimited={rateLimited}

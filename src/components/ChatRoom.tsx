@@ -14,7 +14,6 @@ interface ChatRoomProps {
   onLeave:              () => void
   onTerminate:          () => Promise<void>
   onConfirmDeadDrop:    (id: string) => void
-  onConfirmAll:         () => void
   dropError?:           string | null
   onClearError?:        () => void
   rateLimited?:         boolean
@@ -34,7 +33,6 @@ export function ChatRoom({
   onLeave,
   onTerminate,
   onConfirmDeadDrop,
-  onConfirmAll,
   dropError,
   onClearError,
   rateLimited,
@@ -71,9 +69,6 @@ export function ChatRoom({
   const peerLabel = peerCount > 0 ? `${peerCount + 1} in room`
     : presenceCount > 0 ? 'connecting...'
     : 'waiting'
-
-  const pendingDrops    = messages.filter(m => m.isDeadDrop && !m.confirmed).length
-  const showBulkAction  = pendingDrops > 0 && peerCount === 0
 
   return (
     <div className="chat-app">
@@ -125,25 +120,12 @@ export function ChatRoom({
         </div>
       )}
 
-      {/* Bulk action banner */}
-      {showBulkAction && (
-        <div className="bulk-banner">
-          <span className="bulk-banner-text">
-            <strong>{pendingDrops}</strong> message{pendingDrops > 1 ? 's' : ''} queued for pickup
-          </span>
-          <button className="mark-all-btn" onClick={onConfirmAll}>
-            MARK ALL READ
-          </button>
-        </div>
-      )}
-
       {/* Messages */}
       <MessageList
         messages={messages}
         myAlias={alias}
         burnSecondsRemaining={burnSecondsRemaining}
         onConfirmDeadDrop={onConfirmDeadDrop}
-        onConfirmAll={onConfirmAll}
         hasPeers={peerCount > 0}
       />
 

@@ -6,7 +6,6 @@ interface MessageListProps {
   myAlias:              string
   burnSecondsRemaining: (msg: DisplayMessage) => number | null
   onConfirmDeadDrop:    (id: string) => void
-  onConfirmAll:         () => void
   hasPeers:             boolean
 }
 
