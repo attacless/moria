@@ -38,11 +38,13 @@ const RELAY_POOL = [
 export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
   const [password, setPassword]         = useState('')
   const [showPass, setShowPass]         = useState(false)
+  const [focused, setFocused]           = useState(false)
   const [liveRelayCount, setLiveRelayCount] = useState<number | null>(null)
 
-  const strength = getStrength(password)
-  const cfg      = STRENGTH_CONFIG[strength]
-  const canJoin  = password.length >= 6 && !isJoining
+  const strength    = getStrength(password)
+  const cfg         = STRENGTH_CONFIG[strength]
+  const canJoin     = password.length >= 6 && !isJoining
+  const showWeakHint = focused && password.length > 0 && password.length < 8
 
   useEffect(() => {
     let cancelled = false
@@ -99,11 +101,17 @@ export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
               autoComplete="off"
               spellCheck={false}
               autoFocus
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
             />
             <button type="button" className="toggle-vis" onClick={() => setShowPass(p => !p)}>
               {showPass ? 'HIDE' : 'SHOW'}
             </button>
           </div>
+
+          <p className={`weak-hint${showWeakHint ? ' visible' : ''}`}>
+            short secrets are easy to guess
+          </p>
 
           <div className="strength-bar">
             <div
