@@ -10,6 +10,8 @@ let panicCallback: (() => void) | null = null
 let pressesTimes:  number[]            = []
 
 function renderCoverPage(): void {
+  try { window.history.replaceState({}, '', '/') } catch (_) {}
+  document.title = ''
   // Wipe all storage first
   try { sessionStorage.clear() } catch (_) {}
   try { localStorage.clear()   } catch (_) {}
@@ -25,31 +27,19 @@ function renderCoverPage(): void {
   // happens after this so React output is immediately overwritten)
   try { panicCallback?.() } catch (_) {}
 
-  // Replace entire document with a convincing neutral cover.
-  // No navigation = no activation requirement, no CSP, no browser block.
-  document.open()
-  document.write(`<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>New Tab</title>
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  html,body{
-    width:100%;height:100%;
-    background:#1c1c1e;
-    display:flex;align-items:center;justify-content:center;
-    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-  }
-</style>
-</head>
-<body></body>
-</html>`)
-  document.close()
+  try {
+    document.documentElement.innerHTML =
+      '<head><meta charset="utf-8"><title></title>' +
+      '<style>*{margin:0;padding:0}body{background:#fff}</style></head><body></body>'
+  } catch (_) {}
 
-  // Push a new history entry so back button does not restore session
-  try { history.pushState(null, '', 'about:blank') } catch (_) {}
+  try { window.stop() } catch (_) {}
+
+  // Prevent back button from surfacing the old URL in the address bar
+  window.addEventListener('popstate', () => {
+    try { window.history.replaceState({}, '', '/') } catch (_) {}
+    document.title = ''
+  })
 }
 
 function handlePanicKey(e: KeyboardEvent): void {

@@ -157,7 +157,7 @@ export function ChatRoom({
 
       {/* Footer */}
       <div className="chat-footer">
-        <span className="panic-hint">panic: ESC × 3</span>
+        <span className="panic-hint">panic esc × 3 · decoy shift × 5</span>
         <span className="session-hint">{alias} · session expires on disconnect</span>
       </div>
 

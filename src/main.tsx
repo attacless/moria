@@ -7,22 +7,20 @@ import App from './App'
 // replace DOM immediately - session is already destroyed.
 window.addEventListener('pageshow', (e: PageTransitionEvent) => {
   if (e.persisted) {
+    try { window.history.replaceState({}, '', '/') } catch (_) {}
+    document.title = ''
     try { sessionStorage.clear() } catch (_) {}
     try { localStorage.clear()   } catch (_) {}
-    document.open()
-    document.write(`<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>New Tab</title>
-<style>
-  *{margin:0;padding:0}
-  html,body{width:100%;height:100%;background:#070709}
-</style>
-</head>
-<body></body>
-</html>`)
-    document.close()
+    try {
+      document.documentElement.innerHTML =
+        '<head><meta charset="utf-8"><title></title>' +
+        '<style>*{margin:0;padding:0}body{background:#fff}</style></head><body></body>'
+    } catch (_) {}
+    try { window.stop() } catch (_) {}
+    window.addEventListener('popstate', () => {
+      try { window.history.replaceState({}, '', '/') } catch (_) {}
+      document.title = ''
+    })
   }
 })
 

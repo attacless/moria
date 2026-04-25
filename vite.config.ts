@@ -19,7 +19,16 @@ export default defineConfig({
     target: 'es2022',
     outDir: 'dist',
     sourcemap: false,
-    minify: 'esbuild',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+      mangle: {
+        toplevel: true,
+      },
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {

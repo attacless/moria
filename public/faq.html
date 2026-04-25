@@ -2,310 +2,416 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MORIA - How It Works</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Moria - How It Works</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<meta http-equiv="X-DNS-Prefetch-Control" content="off">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="description" content="Nothing is stored. Nothing survives.">
+<meta property="og:title" content="Moria - How It Works">
+<meta property="og:description" content="Nothing is stored. Nothing survives.">
+<meta property="og:url" content="https://moria.chat/faq">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://moria.chat/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Moria - How It Works">
+<meta name="twitter:description" content="Nothing is stored. Nothing survives.">
+<meta name="twitter:image" content="https://moria.chat/og-image.png">
+<script src="/panic.js"></script>
+<link rel="preload" href="/fonts/Ronzino-Bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/Ronzino-Medium.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/Ronzino-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&display=swap');
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/Inter-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/Inter-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Ronzino';
+  font-weight: 400;
+  font-style: normal;
+  src: url('/fonts/Ronzino-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Ronzino';
+  font-weight: 500;
+  font-style: normal;
+  src: url('/fonts/Ronzino-Medium.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Ronzino';
+  font-weight: 700;
+  font-style: normal;
+  src: url('/fonts/Ronzino-Bold.woff2') format('woff2');
+}
 
-  :root {
-    --bg:      #070709;
-    --surface: #0d0d10;
-    --border:  #1e1e24;
-    --border2: #2a2a32;
-    --text:    #c8c8c0;
-    --muted:   #4e4e56;
-    --faint:   #2a2a30;
-    --accent:  #16f07a;
-    --amber:   #e8a020;
-    --red:     #f54848;
-    --mono:    'IBM Plex Mono', 'Courier New', monospace;
-  }
+:root {
+  --bg:              #050505;
+  --surface:         #111111;
+  --surface-raised:  #181818;
+  --border:          rgba(240, 248, 255, 0.08);
+  --border-focus:    rgba(240, 248, 255, 0.2);
+  --border-subtle:   rgba(240, 248, 255, 0.04);
+  --text-primary:    #f0f8ff;
+  --text-secondary:  rgba(240, 248, 255, 0.55);
+  --text-muted:      rgba(240, 248, 255, 0.25);
+  --text-dim:        rgba(240, 248, 255, 0.12);
+  --accent:          #f0f8ff;
+  --red:             #dc2626;
+  --amber:           #d97706;
+  --green:           #22c55e;
+  --font-hero: 'Ronzino', Georgia, serif;
+  --font-body: 'Inter', -apple-system, system-ui, sans-serif;
+  --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  html, body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 13px;
-    line-height: 1.7;
-    -webkit-font-smoothing: antialiased;
-  }
+html, body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
-  /* Nav */
-  nav {
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-    border-bottom: 0.5px solid var(--border);
-    padding: 14px 40px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    z-index: 100;
-  }
+/* ── Nav ── */
+nav {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 100;
+}
 
-  .nav-logo {
-    font-size: 13px;
-    font-weight: 500;
-    letter-spacing: .25em;
-    color: var(--text);
-    text-decoration: none;
-    text-transform: uppercase;
-  }
+.nav-logo {
+  font-family: var(--font-hero);
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.38em;
+  text-indent: 0.38em;
+  color: var(--text-primary);
+  text-decoration: none;
+  text-transform: uppercase;
+}
 
-  .nav-link {
-    font-size: 10px;
-    letter-spacing: .15em;
-    color: var(--muted);
-    text-decoration: none;
-    text-transform: uppercase;
-    border: 0.5px solid var(--border2);
-    padding: 5px 12px;
-    transition: color .15s, border-color .15s;
-  }
+.nav-back {
+  font-family: var(--font-hero);
+  font-weight: 500;
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color 0.2s;
+}
+.nav-back:hover { color: var(--text-secondary); }
 
-  .nav-link:hover {
-    color: var(--accent);
-    border-color: var(--accent);
-  }
+/* ── Layout ── */
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 72px 40px 120px;
+}
 
-  /* Layout */
-  .container {
-    max-width: 680px;
-    margin: 0 auto;
-    padding: 60px 40px 120px;
-  }
+/* ── Page header ── */
+.page-header {
+  margin-bottom: 64px;
+}
 
-  /* Page header */
-  .page-header {
-    margin-bottom: 56px;
-    padding-bottom: 32px;
-    border-bottom: 0.5px solid var(--border);
-  }
+.page-title {
+  font-family: var(--font-hero);
+  font-weight: 700;
+  font-size: 2.4rem;
+  letter-spacing: 0.38em;
+  text-indent: 0.38em;
+  text-align: left;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
 
-  .page-label {
-    font-size: 10px;
-    letter-spacing: .2em;
-    color: var(--muted);
-    text-transform: uppercase;
-    margin-bottom: 12px;
-  }
+.page-subtitle {
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  color: var(--text-muted);
+  text-transform: lowercase;
+}
 
-  .page-title {
-    font-size: 22px;
-    font-weight: 300;
-    letter-spacing: .15em;
-    color: var(--text);
-    text-transform: uppercase;
-    margin-bottom: 16px;
-  }
+/* ── Section ── */
+.section {
+  margin-bottom: 56px;
+}
 
-  .page-summary {
-    font-size: 13px;
-    color: var(--muted);
-    line-height: 1.7;
-    max-width: 560px;
-  }
+.section-label {
+  font-family: var(--font-hero);
+  font-weight: 500;
+  font-size: 0.55rem;
+  letter-spacing: 0.22em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
 
-  /* Section */
-  .section {
-    margin-bottom: 48px;
-    padding-bottom: 48px;
-    border-bottom: 0.5px solid var(--border);
-  }
+/* ── Accordion ── */
+details {
+  border-bottom: 1px solid var(--border);
+}
 
-  .section:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-  }
+details:last-child {
+  border-bottom: none;
+}
 
-  .section-label {
-    font-size: 9px;
-    letter-spacing: .2em;
-    color: var(--muted);
-    text-transform: uppercase;
-    margin-bottom: 20px;
-  }
+details summary {
+  list-style: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 0;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+details summary::-webkit-details-marker { display: none; }
 
-  /* Q&A */
-  .qa { margin-bottom: 28px; }
-  .qa:last-child { margin-bottom: 0; }
+.question {
+  font-family: var(--font-hero);
+  font-weight: 500;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  line-height: 1.5;
+  flex: 1;
+}
 
-  .question {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text);
-    letter-spacing: .04em;
-    margin-bottom: 10px;
-    line-height: 1.5;
-  }
+.chevron {
+  font-family: var(--font-hero);
+  font-weight: 400;
+  font-size: 0.65rem;
+  letter-spacing: 0;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.3s var(--ease-out), color 0.2s;
+}
 
-  .answer {
-    font-size: 13px;
-    color: var(--muted);
-    line-height: 1.75;
-  }
+details[open] .chevron {
+  transform: rotate(180deg);
+  color: var(--text-secondary);
+}
 
-  .answer p { margin-bottom: 10px; }
-  .answer p:last-child { margin-bottom: 0; }
+details summary:hover .question { color: var(--text-primary); }
+details summary:hover .chevron  { color: var(--text-secondary); }
 
-  /* Inline highlights */
-  .hl { color: var(--text); }
-  .hl-green { color: var(--accent); }
-  .hl-amber { color: var(--amber); }
-  .hl-red { color: var(--red); }
+.answer {
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 0.835rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  padding-bottom: 24px;
+  animation: answerIn 0.25s var(--ease-out);
+}
 
-  /* Data table */
-  .data-block {
-    background: var(--surface);
-    border: 0.5px solid var(--border2);
-    padding: 16px 20px;
-    margin: 14px 0;
-  }
+@keyframes answerIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
-  .data-row {
-    display: flex;
-    gap: 16px;
-    padding: 5px 0;
-    border-bottom: 0.5px solid var(--border);
-    font-size: 12px;
-  }
+.answer p { margin-bottom: 12px; }
+.answer p:last-child { margin-bottom: 0; }
 
-  .data-row:last-child { border-bottom: none; }
+/* ── Inline highlights ── */
+.hl       { color: var(--text-primary); }
+.hl-amber { color: var(--amber); }
+.hl-red   { color: var(--red); }
+.hl-green { color: var(--green); }
 
-  .data-key {
-    min-width: 180px;
-    color: var(--muted);
-    flex-shrink: 0;
-  }
+/* ── Key badge ── */
+.key {
+  display: inline-block;
+  font-family: var(--font-hero);
+  font-weight: 500;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 1px solid var(--border-focus);
+  padding: 2px 8px;
+  border-radius: 2px;
+  vertical-align: baseline;
+  position: relative;
+  top: -1px;
+}
 
-  .data-val { color: var(--text); }
+/* ── Data table ── */
+.data-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 16px 0;
+}
 
-  /* Caveat block */
-  .caveat {
-    border-left: 2px solid var(--amber);
-    padding: 12px 16px;
-    margin: 14px 0;
-    background: rgba(232,160,32,0.04);
-  }
+.data-row {
+  display: grid;
+  grid-template-columns: 196px 1fr;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+.data-row:last-child { border-bottom: none; }
 
-  .caveat-label {
-    font-size: 9px;
-    letter-spacing: .15em;
-    color: var(--amber);
-    text-transform: uppercase;
-    margin-bottom: 6px;
-  }
+.data-key,
+.data-val {
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 0.77rem;
+  line-height: 1.55;
+  padding: 10px 16px;
+}
 
-  .caveat-text {
-    font-size: 12px;
-    color: var(--muted);
-    line-height: 1.65;
-  }
+.data-key {
+  color: var(--text-muted);
+  border-right: 1px solid var(--border);
+  font-family: var(--font-hero);
+  font-weight: 500;
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 
-  /* Key sequence */
-  .key {
-    display: inline-block;
-    background: var(--surface);
-    border: 0.5px solid var(--border2);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 1px 7px;
-    letter-spacing: .06em;
-  }
+.data-val { color: var(--text-secondary); }
 
-  /* Separator */
-  hr {
-    border: none;
-    border-top: 0.5px solid var(--border);
-    margin: 48px 0;
-  }
+/* ── Caveat block ── */
+.caveat {
+  padding: 12px 16px;
+  margin: 16px 0;
+  background: var(--surface);
+}
 
-  /* Footer */
-  footer {
-    border-top: 0.5px solid var(--border);
-    padding: 24px 40px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
+.caveat-label {
+  font-family: var(--font-hero);
+  font-weight: 500;
+  font-size: 0.55rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
 
-  .footer-text {
-    font-size: 10px;
-    letter-spacing: .1em;
-    color: var(--faint);
-    text-transform: uppercase;
-  }
+.caveat-text {
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
 
-  /* Mobile */
-  @media (max-width: 600px) {
-    nav { padding: 12px 20px; }
-    .container { padding: 40px 20px 80px; }
-    footer { padding: 20px; flex-direction: column; gap: 8px; }
-    .data-row { flex-direction: column; gap: 2px; }
-    .data-key { min-width: unset; }
-  }
+
+/* ── Section intro ── */
+.section-intro {
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 0.835rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+
+/* ── Mobile ── */
+@media (max-width: 600px) {
+  nav            { padding: 14px 20px; }
+  .container     { padding: 48px 20px 80px; }
+  .page-title    { font-size: 1.8rem; letter-spacing: 0.32em; text-indent: 0.32em; }
+  .data-row      { grid-template-columns: 1fr; }
+  .data-key      { border-right: none; border-bottom: 1px solid var(--border); }
+}
 </style>
 </head>
 <body>
 
 <nav>
-  <a class="nav-logo" href="/">MORIA</a>
-  <a class="nav-link" href="/">← Enter Room</a>
+  <a class="nav-logo" href="/">Moria</a>
+  <a class="nav-back" href="/">Enter Room</a>
 </nav>
 
 <div class="container">
 
   <div class="page-header">
-    <div class="page-label">Security Documentation</div>
     <div class="page-title">How It Works</div>
-    <div class="page-summary">
-      Full transparency on what MORIA does, how it protects you,
-      and what no party - including us - can see. Every claim on
-      this page is verifiable in the open-source codebase.
-    </div>
+
   </div>
 
-  <!-- SECTION 1: WHAT IS MORIA -->
   <div class="section">
     <div class="section-label">01 - Overview</div>
 
-    <div class="qa">
-      <div class="question">What is MORIA?</div>
+    <details>
+      <summary>
+        <span class="question">What is Moria?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
-        <p>MORIA is an anonymous, end-to-end encrypted chat room that
+        <p>Moria is an anonymous, end-to-end encrypted chat room that
         requires no accounts, no emails, no phone numbers, and no personal
         information of any kind. You enter a shared secret - a password -
         and anyone else who enters the same password lands in the same room.</p>
         <p>There is no room list, no directory, no way to browse. If you do
         not know the secret, the room does not exist to you.</p>
       </div>
-    </div>
+    </details>
 
-    <div class="qa">
-      <div class="question">What makes MORIA different from other encrypted messengers?</div>
+    <details>
+      <summary>
+        <span class="question">What makes Moria different from other encrypted messengers?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
         <p>Most encrypted messengers route your messages through a server
         the operator controls. Even if messages are encrypted, the operator
         can see who is talking to whom, when, and how often.</p>
-        <p>MORIA has no such server. After an initial handshake over the
+        <p>Moria has no such server. After an initial handshake over the
         decentralized Nostr relay network, messages travel
         <span class="hl">directly peer-to-peer</span> over WebRTC - an
         encrypted direct connection between your device and the other
         person's device. No relay, no operator, no third party sits
         in the path of your conversation.</p>
       </div>
-    </div>
+    </details>
   </div>
 
-  <!-- SECTION 2: ENCRYPTION -->
   <div class="section">
     <div class="section-label">02 - Encryption</div>
 
-    <div class="qa">
-      <div class="question">How does the encryption work?</div>
+    <details>
+      <summary>
+        <span class="question">How does the encryption work?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
         <p>When you enter your shared secret, three things happen
         entirely in your browser - nothing is sent to any server:</p>
@@ -330,10 +436,13 @@
         <span class="hl">ChaCha20-Poly1305</span> using the per-peer
         session key before it leaves your device.</p>
       </div>
-    </div>
+    </details>
 
-    <div class="qa">
-      <div class="question">What is message padding?</div>
+    <details>
+      <summary>
+        <span class="question">What is message padding?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
         <p>Before encryption, every message is padded to a fixed
         <span class="hl">8,192-byte block</span> using a 2-byte length
@@ -346,22 +455,28 @@
         - ensures there is no distinguishable pattern in the plaintext
         before encryption. Padding eliminates this side channel entirely.</p>
       </div>
-    </div>
+    </details>
 
-    <div class="qa">
-      <div class="question">What is timestamp obfuscation?</div>
+    <details>
+      <summary>
+        <span class="question">What is timestamp obfuscation?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
         <p>Timestamps included in messages are rounded to the nearest
         60 seconds before encryption. This prevents timing correlation
         attacks where an observer could match message patterns across
         different channels by comparing exact timestamps.</p>
       </div>
-    </div>
+    </details>
 
-    <div class="qa">
-      <div class="question">What is decoy traffic?</div>
+    <details>
+      <summary>
+        <span class="question">What is decoy traffic?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
-        <p>MORIA automatically sends encrypted dummy messages to all
+        <p>Moria automatically sends encrypted dummy messages to all
         connected peers at random intervals between 10 and 60 seconds.
         These decoy messages are indistinguishable from real messages -
         they are the same size, encrypted with the same session key,
@@ -371,19 +486,20 @@
         the WebRTC connection cannot determine when real communication
         is happening versus when the channel is idle.</p>
       </div>
-    </div>
+    </details>
   </div>
 
-  <!-- SECTION 3: WHAT IS SEEN -->
   <div class="section">
     <div class="section-label">03 - What Each Party Sees</div>
 
-    <div class="qa">
-      <div class="question">What does the Nostr relay network see?</div>
+    <details>
+      <summary>
+        <span class="question">What does the Nostr relay network see?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
         <p>Nostr relays are used for two purposes: WebRTC peer discovery
         (signaling) and dead drop storage. Here is exactly what they see:</p>
-
         <div class="data-block">
           <div class="data-row">
             <div class="data-key">Signaling (SDP)</div>
@@ -415,10 +531,13 @@
           </div>
         </div>
       </div>
-    </div>
+    </details>
 
-    <div class="qa">
-      <div class="question">What does your peer see?</div>
+    <details>
+      <summary>
+        <span class="question">What does your peer see?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
         <p>Your peer sees your messages after decryption, your ephemeral
         session alias (a random 8-character hex code generated fresh each
@@ -429,27 +548,32 @@
         IP address. Tor Browser prevents IP disclosure entirely but may
         affect connection reliability.</p>
       </div>
-    </div>
+    </details>
 
-    <div class="qa">
-      <div class="question">What does Attacless see?</div>
+    <details>
+      <summary>
+        <span class="question">What does Moria see?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
-        <p>Nothing. MORIA has no server, no database, no logging
+        <p>Nothing. Moria has no server, no database, no logging
         infrastructure, and no analytics. The app is a static file
         served by Cloudflare Pages. We have no mechanism to identify
         you, read your messages, or track your sessions.</p>
       </div>
-    </div>
+    </details>
   </div>
 
-  <!-- SECTION 4: DEAD DROPS -->
   <div class="section">
     <div class="section-label">04 - Queued Messages</div>
 
-    <div class="qa">
-      <div class="question">What is a queued message?</div>
+    <details>
+      <summary>
+        <span class="question">What is a queued message?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
-        <p>When you enter a room with no one else present, MORIA
+        <p>When you enter a room with no one else present, Moria
         operates as a <span class="hl">digital dead drop</span>. In
         intelligence tradecraft, a dead drop is a method of passing
         information between two people without them ever needing to
@@ -461,10 +585,13 @@
         contact enters the same secret whenever they are ready and
         picks up the message.</p>
       </div>
-    </div>
+    </details>
 
-    <div class="qa">
-      <div class="question">How long do queued messages last?</div>
+    <details>
+      <summary>
+        <span class="question">How long do queued messages last?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
         <p>All queued messages carry a
         <span class="hl">24-hour expiration tag</span> (NIP-40).
@@ -478,19 +605,21 @@
         all queued messages auto-confirm the moment the second person
         joins - no manual action required.</p>
       </div>
-    </div>
+    </details>
 
-    <div class="qa">
-      <div class="question">Can queued messages be deleted before they expire?</div>
+    <details>
+      <summary>
+        <span class="question">Can queued messages be deleted before they expire?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
         <p>Yes, with caveats. When you click
-        <span class="hl">TERMINATE</span>, MORIA publishes a
+        <span class="hl">TERMINATE</span>, Moria publishes a
         <span class="hl">NIP-09 deletion request</span> (kind 5 event)
         to the relay network, signed with the original ephemeral keypair
         used to publish each message. This is the strongest possible
         deletion signal - the signature proves the deletion was
         authorized by the original publisher.</p>
-
         <div class="caveat">
           <div class="caveat-label">Caveat</div>
           <div class="caveat-text">
@@ -504,18 +633,19 @@
           </div>
         </div>
       </div>
-    </div>
+    </details>
   </div>
 
-  <!-- SECTION 5: BURN TIMERS -->
   <div class="section">
     <div class="section-label">05 - Message Lifetimes</div>
 
-    <div class="qa">
-      <div class="question">How long do messages last?</div>
+    <details>
+      <summary>
+        <span class="question">How long do messages last?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
-        <p>MORIA uses a tiered self-destruct system:</p>
-
+        <p>Moria uses a tiered self-destruct system:</p>
         <div class="data-block">
           <div class="data-row">
             <div class="data-key">Queued message</div>
@@ -534,21 +664,22 @@
             <div class="data-val">Immediate local wipe. NIP-09 relay deletion attempted.</div>
           </div>
         </div>
-
         <p>There is no archive, no backup, no way to recover a
         deleted message. All message state is held in browser RAM
         only - closing the tab destroys everything with no
         server-side copy.</p>
       </div>
-    </div>
+    </details>
   </div>
 
-  <!-- SECTION 6: SECURITY FEATURES -->
   <div class="section">
     <div class="section-label">06 - Security Features</div>
 
-    <div class="qa">
-      <div class="question">What is the panic key?</div>
+    <details>
+      <summary>
+        <span class="question">What is the panic key?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
         <p>Triple-tapping <span class="key">ESC</span> within one
         second instantly wipes your session. When triggered:</p>
@@ -569,10 +700,13 @@
           </div>
         </div>
       </div>
-    </div>
+    </details>
 
-    <div class="qa">
-      <div class="question">What is the TERMINATE button?</div>
+    <details>
+      <summary>
+        <span class="question">What is the TERMINATE button?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
         <p>TERMINATE does three things simultaneously:</p>
         <p><span class="hl">1.</span> Broadcasts an encrypted
@@ -587,27 +721,33 @@
         <p>Unlike the panic key, TERMINATE is a coordinated wipe
         across all parties and all storage layers.</p>
       </div>
-    </div>
+    </details>
 
-    <div class="qa">
-      <div class="question">What is the inactivity timeout?</div>
+    <details>
+      <summary>
+        <span class="question">What is the inactivity timeout?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
         <p>If you are inactive for 4 minutes - no typing, no mouse
         movement, no scrolling - a warning dialog appears. If you do
-        not respond within the following minute, MORIA automatically
+        not respond within the following minute, Moria automatically
         disconnects you and returns to the entry screen. All session
         state is cleared.</p>
         <p>This protects your session if you walk away from your
         device and prevents messages from burning while no one is
         actively reading.</p>
       </div>
-    </div>
+    </details>
 
-    <div class="qa">
-      <div class="question">What is steganographic mode?</div>
+    <details>
+      <summary>
+        <span class="question">What is steganographic mode?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
         <p>Pressing <span class="key">Shift</span> five times rapidly
-        transforms the MORIA interface into a document editor
+        transforms the Moria interface into a document editor
         appearance. Messages appear as paragraphs in what looks like
         a text document. All encryption, burn timers, and messaging
         continue operating normally underneath.</p>
@@ -615,24 +755,30 @@
         <span class="key">Shift</span> five times again to return to
         the normal interface.</p>
       </div>
-    </div>
+    </details>
 
-    <div class="qa">
-      <div class="question">Are there any cookies or trackers?</div>
+    <details>
+      <summary>
+        <span class="question">Are there any cookies or trackers?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
-        <p>No. MORIA sets no cookies, uses no analytics, loads no
+        <p>No. Moria sets no cookies, uses no analytics, loads no
         third-party scripts, and makes no external requests except
         to the Nostr relay network for peer discovery and queued
         message storage. The Content Security Policy headers enforce
         this at the browser level. You can verify this in your
         browser's developer tools.</p>
       </div>
-    </div>
+    </details>
 
-    <div class="qa">
-      <div class="question">Can I copy or screenshot messages?</div>
+    <details>
+      <summary>
+        <span class="question">Can I copy or screenshot messages?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
-        <p>MORIA actively discourages capturing message content.
+        <p>Moria actively discourages capturing message content.
         Text selection is disabled in the chat area, right-click
         context menus are blocked, and common screenshot keyboard
         shortcuts are intercepted. The clipboard is automatically
@@ -642,17 +788,19 @@
         guarantees. A determined person can always photograph their
         screen with another device. The goal is to make casual
         capture difficult and reinforce the expectation that
-        conversations in MORIA are not meant to be saved.</p>
+        conversations in Moria are not meant to be saved.</p>
       </div>
-    </div>
+    </details>
   </div>
 
-  <!-- SECTION 7: CHOOSING A SECRET -->
   <div class="section">
     <div class="section-label">07 - Choosing a Secret</div>
 
-    <div class="qa">
-      <div class="question">How should I choose a shared secret?</div>
+    <details>
+      <summary>
+        <span class="question">How should I choose a shared secret?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
         <p>Your shared secret is the single most important piece of
         your security. It is both the key to your room and the
@@ -669,19 +817,20 @@
         If you suspect a secret has been compromised, stop using
         it immediately and agree on a new one.</p>
       </div>
-    </div>
+    </details>
   </div>
 
-  <!-- SECTION 8: TRUST MODEL -->
   <div class="section">
     <div class="section-label">08 - Trust Model</div>
 
-    <div class="qa">
-      <div class="question">What are the residual risks?</div>
+    <details>
+      <summary>
+        <span class="question">What are the residual risks?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
         <p>No tool eliminates all risk. Here is an honest accounting
-        of what MORIA cannot protect against:</p>
-
+        of what Moria cannot protect against:</p>
         <div class="data-block">
           <div class="data-row">
             <div class="data-key">Compromised room secret</div>
@@ -689,7 +838,7 @@
           </div>
           <div class="data-row">
             <div class="data-key">Device compromise</div>
-            <div class="data-val hl-red">Malware or physical access to your device can read messages in RAM before encryption. MORIA cannot protect against a compromised device.</div>
+            <div class="data-val hl-red">Malware or physical access to your device can read messages in RAM before encryption. Moria cannot protect against a compromised device.</div>
           </div>
           <div class="data-row">
             <div class="data-key">IP visibility to relays</div>
@@ -701,7 +850,7 @@
           </div>
           <div class="data-row">
             <div class="data-key">Peer-side capture</div>
-            <div class="data-val hl-amber">MORIA cannot prevent your peer from photographing their screen. TERMINATE removes messages from their view but not from a photo already taken.</div>
+            <div class="data-val hl-amber">Moria cannot prevent your peer from photographing their screen. TERMINATE removes messages from their view but not from a photo already taken.</div>
           </div>
           <div class="data-row">
             <div class="data-key">WebRTC STUN exposure</div>
@@ -709,12 +858,15 @@
           </div>
         </div>
       </div>
-    </div>
+    </details>
 
-    <div class="qa">
-      <div class="question">Can government agencies access my messages?</div>
+    <details>
+      <summary>
+        <span class="question">Can government agencies access my messages?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
       <div class="answer">
-        <p>MORIA has no server to subpoena and no operator with
+        <p>Moria has no server to subpoena and no operator with
         access to your messages. Live messages exist only in browser
         RAM and are destroyed on disconnect. Queued messages are
         encrypted blobs on third-party Nostr relays - relay
@@ -727,15 +879,65 @@
         room ID hashes - none of which are useful without the
         shared secret that only the participants know.</p>
       </div>
-    </div>
+    </details>
+  </div>
+
+  <div class="section">
+    <div class="section-label">09 - Threat Model</div>
+
+    <p class="section-intro">Moria operates in two distinct modes with different privacy properties. Users should understand both.</p>
+
+    <details>
+      <summary>
+        <span class="question">Dead Drop Mode (No Peers Online)</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
+      <div class="answer">
+        <p>When no one else is in the room, messages are encrypted and published as ephemeral blobs to a distributed pool of public Nostr relays. The recipient retrieves and decrypts them later. In this mode:</p>
+        <p><span class="hl">IP exposure: none.</span> Your IP address is never exposed to the other party. Each participant connects independently to Nostr relays at different times.</p>
+        <p><span class="hl">Content: fully encrypted.</span> Content is end-to-end encrypted with a shared room key. No relay operator can read messages.</p>
+        <p><span class="hl">Metadata exposure: limited.</span> Relay operators can see that an IP connected and stored or retrieved an encrypted blob, but cannot link sender and recipient without traffic analysis across multiple independent relay operators.</p>
+        <p><span class="hl">Ephemeral storage.</span> Blobs expire after 24 hours via NIP-40 and are actively deleted via NIP-09 on room termination.</p>
+        <div class="caveat">
+          <div class="caveat-label">Strongest Privacy Mode</div>
+          <div class="caveat-text">This is Moria's strongest privacy mode. It is the recommended mode for sensitive communication.</div>
+        </div>
+      </div>
+    </details>
+
+    <details>
+      <summary>
+        <span class="question">Live Chat Mode (Peers Online)</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
+      <div class="answer">
+        <p>When another participant is in the room, Moria establishes a direct peer-to-peer WebRTC connection for real-time messaging. Signaling happens over Nostr relays via Trystero. Messages travel directly between browsers. No server, relay, or third party ever sees the content.</p>
+        <p><span class="hl-amber">IP exposure: visible to peer.</span> WebRTC requires direct connections between browsers. During ICE negotiation, both peers exchange network candidates that contain their real IP addresses. This happens at the protocol level, below Moria's encryption layer. STUN servers used for NAT traversal also see your public IP but have no visibility into message content or room identity.</p>
+        <p><span class="hl">Content protection: strong.</span> Every message is encrypted with ChaCha20-Poly1305 using a per-peer ephemeral session key derived from X25519 ECDH and HKDF-SHA256. The key is unique to each session and destroyed on disconnect.</p>
+        <p><span class="hl">Traffic analysis resistance: active.</span> Three countermeasures operate simultaneously on the live channel. First, every message is padded to a fixed 8,192-byte block using a 2-byte length prefix filled with cryptographically random noise. A two-character message produces identical ciphertext size to a maximum-length message. Second, timestamps embedded in encrypted payloads are rounded to 60-second granularity, preventing cross-channel timing correlation. Third, encrypted dummy messages are sent to all connected peers at random intervals between 10 and 60 seconds. These decoy messages are the same size, encrypted with the same session key, and transit the same channel as real messages. The receiving client silently discards them after decryption. An observer monitoring the WebRTC connection cannot determine when real communication is happening versus when the channel is idle.</p>
+        <p><span class="hl">No relay fallback during live session.</span> If the WebRTC connection drops mid-session, messages to that peer are lost until the connection reestablishes or the peer disconnects and the room reverts to dead drop mode.</p>
+        <div class="caveat">
+          <div class="caveat-label">Architectural Note</div>
+          <div class="caveat-text">Routing live traffic through a TURN relay would hide peer IPs from each other, but the relay operator would observe both parties' IPs, connection timing, session duration, and message frequency. For a zero-knowledge architecture, introducing a centralized relay that observes metadata is a worse tradeoff than direct P2P with IP exposure. Users who require network-level anonymity from their peer should use dead drop mode or operate from a network not tied to their identity.</div>
+        </div>
+      </div>
+    </details>
+
+    <details>
+      <summary>
+        <span class="question">User Responsibility</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
+      <div class="answer">
+        <p>Moria protects content through end-to-end encryption and minimizes forensic artifacts through ephemeral storage. It does not provide network-level anonymity. Users are responsible for:</p>
+        <p>Using the dead drop mode when IP exposure to the other party is unacceptable.</p>
+        <p>Operating from networks not tied to their identity (VPN, Tor, public WiFi, cellular hotspot) when using live chat mode.</p>
+        <p>Understanding that Moria is one layer in an operational security stack, not a complete anonymity solution.</p>
+      </div>
+    </details>
   </div>
 
 </div>
-
-<footer>
-  <span class="footer-text">MORIA - encrypted · anonymous · ephemeral</span>
-  <span class="footer-text">Attacless</span>
-</footer>
 
 </body>
 </html>

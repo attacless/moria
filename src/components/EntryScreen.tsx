@@ -132,6 +132,8 @@ export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
     </div>
 
     {/* Relay status - fixed at bottom, outside centered container */}
+    <a href="/faq" className={`faq-hint${isJoining ? ' exiting' : ''}`}>how it works</a>
+
     <div className={`relay-status${isJoining ? ' exiting' : ''}`}>
       <div className={`relay-dot${relayState === 'connecting' ? ' connecting' : relayState === 'offline' ? ' offline' : ''}`} />
       <span>

@@ -53,6 +53,14 @@ export async function joinChatRoom(
   const room = joinRoom(
     {
       appId:     APP_ID,
+      relayUrls: [
+        'wss://nos.lol',
+        'wss://relay.primal.net',
+        'wss://nostr.wine',
+        'wss://relay.nostrplebs.com',
+        'wss://nostr-pub.wellorder.net',
+        'wss://relay.nostr.wirednet.jp',
+      ],
       // Trystero's peer.mjs builds the RTCPeerConnection config as:
       //   { iceServers: defaultIceServers, ...rtcConfig }
       // Object spread means our iceServers key replaces the defaults entirely.
