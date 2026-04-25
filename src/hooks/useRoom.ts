@@ -98,8 +98,9 @@ export function useRoom() {
       setScreen('chat')
       mountSecurityMeasures()
 
-      // Wait for WebRTC handshake window before fetching queued messages
-      // so dedup has live messages in messagesRef to compare against
+      // Fetch queued dead drops after a short window so the dedup set
+      // includes any live messages that arrived via WebRTC during handshake.
+      // Dead drop polling is independent of peer connection — it always runs.
       setTimeout(async () => {
         if (!sessionRef.current) return  // user may have left already
 
@@ -126,7 +127,13 @@ export function useRoom() {
               // No burnAt yet - starts only when MARK READ pressed or peer joins
             }))
 
-          if (dropMessages.length > 0) addMessages(dropMessages)
+          if (dropMessages.length > 0) {
+            addMessages(dropMessages)
+            // Peers may have connected during the relay fetch window.
+            // autoConfirmDeadDrops() fired on peer join but before these
+            // messages existed — call it again so burn timers start immediately.
+            if (getPeerCount() > 0) autoConfirmDeadDrops()
+          }
         }
       }, 1_500)
 
