@@ -39,10 +39,15 @@ function getBurnClass(secs: number): string {
 }
 
 export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining, onConfirmDeadDrop, hasPeers: _hasPeers, collapsedDrops, onToggleDropCollapse }: MessageListProps) {
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const bottomRef    = useRef<HTMLDivElement>(null)
+  const prevCountRef = useRef(messages.length)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messages.length > prevCountRef.current) {
+      // Only scroll when a message was ADDED — not when burn timer removes one
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+    prevCountRef.current = messages.length
   }, [messages.length])
 
   function handleReveal(id: string, needsConfirm: boolean) {
