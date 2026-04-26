@@ -43,9 +43,9 @@ if (!isWebRTCSupported()) {
   document.body.style.cssText = `
     margin: 0;
     padding: 0;
-    background: #070709;
-    color: #c8c8c0;
-    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    background: #050505;
+    color: rgba(240,248,255,0.9);
+    font-family: 'Inter', system-ui, sans-serif;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -57,63 +57,64 @@ if (!isWebRTCSupported()) {
     <div style="max-width:360px;padding:40px 24px;">
 
       <div style="
+        font-family: 'Ronzino', 'Inter', sans-serif;
         font-size: 13px;
         font-weight: 500;
         letter-spacing: .25em;
         text-transform: uppercase;
-        margin-bottom: 24px;
-        color: #c8c8c0;
+        margin-bottom: 32px;
+        color: rgba(240,248,255,0.9);
       ">MORIA</div>
 
       <div style="
+        font-family: 'Ronzino', 'Inter', sans-serif;
         font-size: 11px;
-        letter-spacing: .08em;
-        color: #f54848;
+        letter-spacing: .15em;
         text-transform: uppercase;
+        color: rgba(240,248,255,0.9);
         margin-bottom: 16px;
-      ">WebRTC unavailable</div>
+      ">browser not supported</div>
 
       <div style="
         font-size: 12px;
-        color: #4e4e56;
-        line-height: 1.7;
-        letter-spacing: .04em;
-        margin-bottom: 24px;
+        color: rgba(240,248,255,0.3);
+        line-height: 1.8;
+        letter-spacing: .03em;
+        margin-bottom: 28px;
       ">
-        MORIA requires WebRTC for direct peer-to-peer
-        encrypted connections. Your browser does not
-        currently support WebRTC.
+        Moria requires WebRTC for peer-to-peer encrypted
+        connections. Your browser does not support WebRTC.
       </div>
 
       <div style="
-        border: 0.5px solid #2a2a32;
-        padding: 12px 16px;
-        line-height: 1.7;
-        letter-spacing: .04em;
-        margin-bottom: 24px;
+        border: 0.5px solid rgba(240,248,255,0.08);
+        padding: 14px 16px;
+        line-height: 1.8;
+        letter-spacing: .03em;
+        margin-bottom: 28px;
         text-align: left;
       ">
         <div style="
-          color: #e8a020;
+          font-family: 'Ronzino', 'Inter', sans-serif;
+          color: rgba(240,248,255,0.9);
           font-size: 9px;
           letter-spacing: .2em;
           text-transform: uppercase;
           margin-bottom: 8px;
         ">iOS Lockdown Mode</div>
-        <div style="color: #4e4e56; font-size: 11px; line-height: 1.7;">
-          If you have Lockdown Mode enabled on your iPhone
-          or iPad, WebRTC is disabled by Apple to reduce
-          attack surface. Disable Lockdown Mode to use
-          MORIA on this device, or switch to a desktop
-          browser.
+        <div style="color: rgba(240,248,255,0.3); font-size: 11px; line-height: 1.8;">
+          If Lockdown Mode is enabled on your iPhone or iPad,
+          Apple disables WebRTC to reduce attack surface.
+          Disable Lockdown Mode to use Moria on this device,
+          or open Moria in a desktop browser.
         </div>
       </div>
 
       <div style="
         font-size: 11px;
-        color: #4e4e56;
-        line-height: 1.7;
-        letter-spacing: .04em;
+        color: rgba(240,248,255,0.3);
+        line-height: 1.8;
+        letter-spacing: .03em;
       ">
         Supported: Safari, Chrome, Firefox, Brave<br>
         on iOS (without Lockdown Mode) and Android.
