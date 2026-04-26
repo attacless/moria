@@ -672,6 +672,7 @@ input, textarea { font-family: var(--font-body); }
   animation: msgAppear 0.2s ease;
   position: relative;
   margin-top: 8px;
+  flex-shrink: 0;
 }
 
 .message.own {
@@ -777,7 +778,7 @@ input, textarea { font-family: var(--font-body); }
   border-radius: 16px 16px 16px 4px;
   padding: 10px 14px;
   cursor: pointer;
-  overflow: hidden;
+  flex-shrink: 0;
   transition: background 0.2s ease-out, padding 0.2s ease-out;
 }
 .dead-drop-collapsed:hover {
@@ -789,7 +790,7 @@ input, textarea { font-family: var(--font-body); }
   background: rgba(240, 248, 255, 0.03);
   border-radius: 16px 16px 16px 4px;
   padding: 10px 14px;
-  overflow: hidden;
+  flex-shrink: 0;
   transition: background 0.2s ease-out, padding 0.2s ease-out;
 }
 .dead-drop-revealed.dead-drop-open {
@@ -842,20 +843,9 @@ input, textarea { font-family: var(--font-body); }
   animation: dropPulse 2s ease-in-out infinite;
 }
 
-/* Expandable content area — grid 0fr→1fr animates to exact content height */
-.dead-drop-content {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transition: grid-template-rows 0.25s ease, opacity 0.2s ease;
-}
-.dead-drop-content.open {
-  grid-template-rows: 1fr;
-  opacity: 1;
-}
-.dead-drop-content > div {
-  overflow: hidden;
-  padding-top: 8px;
+/* Dead drop body — plain block, no height constraints */
+.dead-drop-body {
+  margin-top: 8px;
 }
 
 /* Inline burn timer for dead drop (no absolute positioning) */

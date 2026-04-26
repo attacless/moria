@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { MessageList } from './MessageList'
 import { InputBar }    from './InputBar'
 import type { DisplayMessage } from '@/types'
@@ -42,6 +42,17 @@ export function ChatRoom({
 }: ChatRoomProps) {
   const [terminating, setTerminating] = useState(false)
   const [clipboardFlash, setClipboardFlash] = useState(false)
+
+  // Dead drop collapse state lives here (not MessageList) so it survives any remount
+  const [collapsedDrops, setCollapsedDrops] = useState<Set<string>>(new Set())
+  const toggleDropCollapse = useCallback((id: string) => {
+    setCollapsedDrops(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
 
   function handleToggleClipboard() {
     const turningOn = !clipboardEnabled
@@ -127,6 +138,8 @@ export function ChatRoom({
         burnSecondsRemaining={burnSecondsRemaining}
         onConfirmDeadDrop={onConfirmDeadDrop}
         hasPeers={peerCount > 0}
+        collapsedDrops={collapsedDrops}
+        onToggleDropCollapse={toggleDropCollapse}
       />
 
       {/* Input */}

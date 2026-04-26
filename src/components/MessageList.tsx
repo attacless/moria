@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import type { DisplayMessage } from '@/types'
 
 interface MessageListProps {
@@ -7,6 +7,8 @@ interface MessageListProps {
   burnSecondsRemaining: (msg: DisplayMessage) => number | null
   onConfirmDeadDrop:    (id: string) => void
   hasPeers:             boolean
+  collapsedDrops:       Set<string>
+  onToggleDropCollapse: (id: string) => void
 }
 
 function formatTime(ms: number): string {
@@ -36,35 +38,20 @@ function getBurnClass(secs: number): string {
   return ''
 }
 
-export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining, onConfirmDeadDrop, hasPeers: _hasPeers }: MessageListProps) {
+export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining, onConfirmDeadDrop, hasPeers: _hasPeers, collapsedDrops, onToggleDropCollapse }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
-
-  // Track which dead drop messages the user has manually revealed (by ID)
-  const [revealed, setRevealed] = useState<Set<string>>(new Set())
-  // Track which revealed messages are currently expanded (for post-reveal toggle)
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length])
 
-  function handleReveal(id: string) {
-    // First reveal: mark as read + expand
-    if (!revealed.has(id)) {
+  function handleReveal(id: string, needsConfirm: boolean) {
+    if (needsConfirm) {
+      // Pre-reveal envelope: confirm — message defaults to open (not in collapsedDrops)
       onConfirmDeadDrop(id)
-      setRevealed(prev => new Set([...prev, id]))
-      setExpanded(prev => new Set([...prev, id]))
     } else {
-      // Toggle expand/collapse for already-revealed messages
-      setExpanded(prev => {
-        const next = new Set([...prev])
-        if (next.has(id)) {
-          next.delete(id)
-        } else {
-          next.add(id)
-        }
-        return next
-      })
+      // Revealed/auto-confirmed: one tap toggles collapsed/open
+      onToggleDropCollapse(id)
     }
   }
 
@@ -89,24 +76,15 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
         // Received dead drop that has NOT been confirmed yet — render collapsed/reveal UI
         // Own dead drops (queued messages) are never collapsed
         const isReceivedDeadDrop = !isMe && !!msg.isDeadDrop
-        const isAutoConfirmed    = isReceivedDeadDrop && !!msg.confirmed
-        const needsReveal        = isReceivedDeadDrop && !msg.confirmed
+        const needsConfirm       = isReceivedDeadDrop && !msg.confirmed
 
-        // A received dead drop that was auto-confirmed should start expanded
-        // We track this by seeding `expanded` for auto-confirmed messages that aren't yet tracked
-        const isExpanded = isAutoConfirmed
-          ? !revealed.has(msg.id) || expanded.has(msg.id)  // auto-confirmed = expanded by default
-          : expanded.has(msg.id)
-
-        const hasBeenRevealed = revealed.has(msg.id) || isAutoConfirmed
-
-        if (isReceivedDeadDrop && !hasBeenRevealed && needsReveal) {
-          // Collapsed dead drop — not yet revealed by user, not auto-confirmed
+        if (isReceivedDeadDrop && needsConfirm) {
+          // Collapsed dead drop envelope — not yet confirmed
           return (
             <div
               key={msg.id}
               className="message received dead-drop-collapsed fade-in"
-              onClick={() => handleReveal(msg.id)}
+              onClick={() => handleReveal(msg.id, true)}
             >
               <div className="dead-drop-header">
                 <span className="msg-time">{formatTime(msg.timestamp)}</span>
@@ -118,8 +96,8 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
         }
 
         if (isReceivedDeadDrop) {
-          // Revealed dead drop (manually or auto-confirmed) — show full content with toggle
-          const isOpen = isExpanded
+          // Revealed dead drop (confirmed) — open by default, single tap to toggle
+          const isOpen = !collapsedDrops.has(msg.id)
 
           // Fade-out approaching expiry
           const opacity    = burn === null ? 1 : burn > 30 ? 1 : Math.max(0.05, burn / 30)
@@ -132,15 +110,15 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
               key={msg.id}
               className={`message received dead-drop-revealed fade-in${isOpen ? ' dead-drop-open' : ''}`}
               style={{ opacity, transition, cursor: 'pointer' }}
-              onClick={() => handleReveal(msg.id)}
+              onClick={() => handleReveal(msg.id, false)}
             >
               <div className="dead-drop-header">
                 <span className="msg-time">{formatTime(msg.timestamp)}</span>
                 <span className="dead-drop-hint">{hintText}</span>
                 <span className={`dead-drop-chevron${isOpen ? ' rotated' : ''}`}>▶</span>
               </div>
-              <div className={`dead-drop-content${isOpen ? ' open' : ''}`}>
-                <div>
+              {isOpen && (
+                <div className="dead-drop-body">
                   {burn !== null && (
                     <span className={`burn-timer inline-burn ${getBurnClass(burn)}`}>
                       {formatBurn(burn)}
@@ -148,7 +126,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
                   )}
                   <div className="msg-body">{msg.body}</div>
                 </div>
-              </div>
+              )}
             </div>
           )
         }
