@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { DisplayMessage } from '@/types'
 
 interface MessageListProps {
@@ -36,12 +36,37 @@ function getBurnClass(secs: number): string {
   return ''
 }
 
-export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining, onConfirmDeadDrop, hasPeers }: MessageListProps) {
+export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining, onConfirmDeadDrop, hasPeers: _hasPeers }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
+
+  // Track which dead drop messages the user has manually revealed (by ID)
+  const [revealed, setRevealed] = useState<Set<string>>(new Set())
+  // Track which revealed messages are currently expanded (for post-reveal toggle)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length])
+
+  function handleReveal(id: string) {
+    // First reveal: mark as read + expand
+    if (!revealed.has(id)) {
+      onConfirmDeadDrop(id)
+      setRevealed(prev => new Set([...prev, id]))
+      setExpanded(prev => new Set([...prev, id]))
+    } else {
+      // Toggle expand/collapse for already-revealed messages
+      setExpanded(prev => {
+        const next = new Set([...prev])
+        if (next.has(id)) {
+          next.delete(id)
+        } else {
+          next.add(id)
+        }
+        return next
+      })
+    }
+  }
 
   return (
     <div
@@ -61,9 +86,74 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
           )
         }
 
-        const showMarkRead = msg.isDeadDrop && !msg.confirmed && !hasPeers && !isMe
+        // Received dead drop that has NOT been confirmed yet — render collapsed/reveal UI
+        // Own dead drops (queued messages) are never collapsed
+        const isReceivedDeadDrop = !isMe && !!msg.isDeadDrop
+        const isAutoConfirmed    = isReceivedDeadDrop && !!msg.confirmed
+        const needsReveal        = isReceivedDeadDrop && !msg.confirmed
 
-        // Fade-out approaching expiry
+        // A received dead drop that was auto-confirmed should start expanded
+        // We track this by seeding `expanded` for auto-confirmed messages that aren't yet tracked
+        const isExpanded = isAutoConfirmed
+          ? !revealed.has(msg.id) || expanded.has(msg.id)  // auto-confirmed = expanded by default
+          : expanded.has(msg.id)
+
+        const hasBeenRevealed = revealed.has(msg.id) || isAutoConfirmed
+
+        if (isReceivedDeadDrop && !hasBeenRevealed && needsReveal) {
+          // Collapsed dead drop — not yet revealed by user, not auto-confirmed
+          return (
+            <div
+              key={msg.id}
+              className="message received dead-drop-collapsed fade-in"
+              onClick={() => handleReveal(msg.id)}
+            >
+              <div className="dead-drop-header">
+                <span className="msg-time">{formatTime(msg.timestamp)}</span>
+                <span className="dead-drop-hint">dead drop · tap to reveal</span>
+                <span className="dead-drop-chevron pulse">▶</span>
+              </div>
+            </div>
+          )
+        }
+
+        if (isReceivedDeadDrop) {
+          // Revealed dead drop (manually or auto-confirmed) — show full content with toggle
+          const isOpen = isExpanded
+
+          // Fade-out approaching expiry
+          const opacity    = burn === null ? 1 : burn > 30 ? 1 : Math.max(0.05, burn / 30)
+          const transition = burn !== null && burn <= 30 ? 'opacity 1s linear' : 'none'
+
+          const hintText = isOpen ? 'revealed · tap to collapse' : 'revealed · tap to expand'
+
+          return (
+            <div
+              key={msg.id}
+              className={`message received dead-drop-revealed fade-in${isOpen ? ' dead-drop-open' : ''}`}
+              style={{ opacity, transition, cursor: 'pointer' }}
+              onClick={() => handleReveal(msg.id)}
+            >
+              <div className="dead-drop-header">
+                <span className="msg-time">{formatTime(msg.timestamp)}</span>
+                <span className="dead-drop-hint">{hintText}</span>
+                <span className={`dead-drop-chevron${isOpen ? ' rotated' : ''}`}>▶</span>
+              </div>
+              <div className={`dead-drop-content${isOpen ? ' open' : ''}`}>
+                <div>
+                  {burn !== null && (
+                    <span className={`burn-timer inline-burn ${getBurnClass(burn)}`}>
+                      {formatBurn(burn)}
+                    </span>
+                  )}
+                  <div className="msg-body">{msg.body}</div>
+                </div>
+              </div>
+            </div>
+          )
+        }
+
+        // Live chat message (own or received non-dead-drop) — unchanged
         const opacity    = burn === null ? 1 : burn > 30 ? 1 : Math.max(0.05, burn / 30)
         const transition = burn !== null && burn <= 30 ? 'opacity 1s linear' : 'none'
 
@@ -86,7 +176,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
             {/* Body */}
             <div className="msg-body">{msg.body}</div>
 
-            {/* Footer: status text + mark read */}
+            {/* Footer: status text */}
             <div className="msg-footer">
               {/* Own message status — failed takes priority, expiry replaces standalone queued badge */}
               {isMe && msg.queuedStatus && (
@@ -96,21 +186,6 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
                   {msg.queuedStatus === 'queued'  && msg.queuedExpiresAt &&
                     `queued · expires ${formatTTL(msg.queuedExpiresAt)}`}
                 </span>
-              )}
-
-              {/* Received dead drop — waiting for peer to confirm */}
-              {!isMe && msg.isDeadDrop && !msg.confirmed && (
-                <span className="msg-status waiting">waiting</span>
-              )}
-
-              {/* Mark read button */}
-              {showMarkRead && (
-                <button
-                  className="mark-read-btn"
-                  onClick={() => onConfirmDeadDrop(msg.id)}
-                >
-                  MARK READ
-                </button>
               )}
             </div>
           </div>

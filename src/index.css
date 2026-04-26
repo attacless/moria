@@ -767,6 +767,104 @@ input, textarea { font-family: var(--font-body); }
 }
 .mark-read-btn:hover { background: none; color: rgba(240, 248, 255, 0.6); }
 
+/* ═══════════════════════════════════
+   DEAD DROP — COLLAPSED / REVEALED
+   ═══════════════════════════════════ */
+
+/* Collapsed state — unrevealed dead drop */
+.dead-drop-collapsed {
+  background: rgba(240, 248, 255, 0.03);
+  border-radius: 16px 16px 16px 4px;
+  padding: 10px 14px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 0.2s ease-out, padding 0.2s ease-out;
+}
+.dead-drop-collapsed:hover {
+  background: rgba(240, 248, 255, 0.05);
+}
+
+/* Revealed state — expanded or collapsed after first tap */
+.dead-drop-revealed {
+  background: rgba(240, 248, 255, 0.03);
+  border-radius: 16px 16px 16px 4px;
+  padding: 10px 14px;
+  overflow: hidden;
+  transition: background 0.2s ease-out, padding 0.2s ease-out;
+}
+.dead-drop-revealed.dead-drop-open {
+  background: rgba(240, 248, 255, 0.07);
+  padding: 14px 14px 10px;
+}
+
+/* Header row shared by collapsed and revealed */
+.dead-drop-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Hint text */
+.dead-drop-hint {
+  font-size: 10px;
+  color: rgba(240, 248, 255, 0.15);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: color 0.2s;
+  font-family: var(--font-mono);
+}
+.dead-drop-collapsed:hover .dead-drop-hint {
+  color: rgba(240, 248, 255, 0.3);
+}
+
+/* Chevron */
+.dead-drop-chevron {
+  font-size: 9px;
+  color: rgba(240, 248, 255, 0.5);
+  transition: transform 0.15s ease, color 0.2s;
+  display: inline-block;
+  line-height: 1;
+}
+.dead-drop-collapsed:hover .dead-drop-chevron {
+  color: rgba(240, 248, 255, 0.25);
+}
+.dead-drop-chevron.rotated {
+  transform: rotate(90deg);
+  color: rgba(240, 248, 255, 0.25);
+}
+
+/* Pulse animation for unrevealed chevron */
+@keyframes dropPulse {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 1; }
+}
+.dead-drop-chevron.pulse {
+  animation: dropPulse 2s ease-in-out infinite;
+}
+
+/* Expandable content area — grid 0fr→1fr animates to exact content height */
+.dead-drop-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.25s ease, opacity 0.2s ease;
+}
+.dead-drop-content.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.dead-drop-content > div {
+  overflow: hidden;
+  padding-top: 8px;
+}
+
+/* Inline burn timer for dead drop (no absolute positioning) */
+.burn-timer.inline-burn {
+  position: static;
+  display: block;
+  margin-bottom: 4px;
+}
+
 .system-msg {
   text-align: center;
   font-family: var(--font-body);
