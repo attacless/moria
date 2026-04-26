@@ -130,9 +130,9 @@ export async function publishDeadDrop(
     return { success: false, receipt: null, reason: 'no_relays' }
   }
 
-  // Privacy envelope: random 0-30s delay breaks correlation between
+  // Privacy envelope: random 0-10s delay breaks correlation between
   // user action timing and relay-visible publish timing.
-  const delay = Math.floor(Math.random() * 30001)
+  const delay = Math.floor(Math.random() * 10001)
   await new Promise(resolve => setTimeout(resolve, delay))
 
   const pool = new SimplePool()
