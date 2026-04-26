@@ -6,6 +6,7 @@ No accounts. No logs. No metadata.
 Nothing is stored, nothing survives. 
 
 https://moria.chat
+License: [AGPL-3.0](LICENSE)
 
 ## Architecture
 
@@ -36,6 +37,4 @@ https://moria.chat
 React 19, TypeScript, Vite, Tailwind. Cryptographic core in Rust/WASM 
 (argon2, chacha20poly1305, x25519-dalek, hkdf, sha2, zeroize).
 
-## Deployment
-
-npm run build && wrangler pages deploy ./dist --branch production
+Built by [Attacless](https://attacless.com)
