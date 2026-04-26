@@ -75,11 +75,17 @@ export async function publishDeadDrop(
   dropId:  string,
   roomKey: Uint8Array
 ): Promise<PublishResult> {
-  const now = Date.now()
-  if (now - lastPublishTime < PUBLISH_RATE_LIMIT_MS) {
+  // Privacy envelopes applied to dead drop publishing:
+  // 1. created_at jittered backward 0-120s (breaks relay-level timestamp correlation)
+  // 2. NIP-40 expiration anchored to real time, not jittered time
+  // 3. Random 0-30s publish delay (breaks network-level timing correlation)
+  // 4. Payload padded to 8,192 bytes (inherited from encrypt function)
+
+  const nowMs = Date.now()
+  if (nowMs - lastPublishTime < PUBLISH_RATE_LIMIT_MS) {
     return { success: false, receipt: null, reason: 'rate_limited' }
   }
-  lastPublishTime = now
+  lastPublishTime = nowMs
 
   const wire: WireMessage = {
     type:      'TEXT',
@@ -93,13 +99,20 @@ export async function publishDeadDrop(
     Array.from(encrypted, b => String.fromCharCode(b)).join('')
   )
 
-  const sk         = generateSecretKey()
-  const expiration = Math.floor(Date.now() / 1000) + DROP_TTL_S
+  const sk  = generateSecretKey()
+  const now = Math.floor(nowMs / 1000)
+
+  // Jitter created_at backward 0-120s to break relay-level timestamp correlation.
+  const jitter           = Math.floor(Math.random() * 121)
+  const jitteredTimestamp = now - jitter
+
+  // Anchor expiration to real time so blobs don't expire early due to jitter.
+  const expiration = now + DROP_TTL_S
 
   const event = finalizeEvent(
     {
       kind:       EVENT_KIND,
-      created_at: Math.floor(Date.now() / 1000),
+      created_at: jitteredTimestamp,
       tags: [
         ['r', dropId],
         ['expiration', String(expiration)],
@@ -117,6 +130,11 @@ export async function publishDeadDrop(
     return { success: false, receipt: null, reason: 'no_relays' }
   }
 
+  // Privacy envelope: random 0-30s delay breaks correlation between
+  // user action timing and relay-visible publish timing.
+  const delay = Math.floor(Math.random() * 30001)
+  await new Promise(resolve => setTimeout(resolve, delay))
+
   const pool = new SimplePool()
   try {
     const results = await Promise.allSettled(pool.publish(liveRelays, event))
@@ -128,7 +146,7 @@ export async function publishDeadDrop(
     }
 
     // Do NOT zero sk - caller stores it for NIP-09 deletion on terminate
-    const expiresAtMs = (Math.floor(Date.now() / 1000) + DROP_TTL_S) * 1000
+    const expiresAtMs = expiration * 1000
     return { success: true, receipt: { eventId, sk, expiresAt: expiresAtMs } }
   } finally {
     pool.close(liveRelays)
