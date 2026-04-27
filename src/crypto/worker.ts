@@ -2,19 +2,20 @@ import { argon2id } from '@noble/hashes/argon2.js'
 
 export type WorkerRequest = {
   password: string
-  type: 'room-id' | 'room-key' | 'drop-id'
+  type: 'room-id' | 'room-key' | 'drop-id' | 'drop-signing-key'
 }
 
 export type WorkerResponse = {
-  type: 'room-id' | 'room-key' | 'drop-id'
+  type: 'room-id' | 'room-key' | 'drop-id' | 'drop-signing-key'
   result: Uint8Array
 }
 
-// Domain-separated salts - never reuse the same salt for both derivations
+// Domain-separated salts - never reuse the same salt for different derivations
 const SALTS: Record<WorkerRequest['type'], Uint8Array> = {
-  'room-id':  new TextEncoder().encode('moria-room-id-v1-salt'),
-  'room-key': new TextEncoder().encode('moria-room-key-v1-salt'),
-  'drop-id':  new TextEncoder().encode('moria-drop-id-v1-salt'),
+  'room-id':          new TextEncoder().encode('moria-room-id-v1-salt'),
+  'room-key':         new TextEncoder().encode('moria-room-key-v1-salt'),
+  'drop-id':          new TextEncoder().encode('moria-drop-id-v1-salt'),
+  'drop-signing-key': new TextEncoder().encode('moria-drop-signing-v1-salt'),
 }
 
 self.onmessage = (e: MessageEvent<WorkerRequest>) => {

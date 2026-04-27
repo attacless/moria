@@ -62,6 +62,36 @@ export function derive_drop_id(secret) {
 }
 
 /**
+ * Derives the deterministic Nostr signing key for dead drop events.
+ *
+ * All dead drop events (publish, poison, NIP-09 deletion) for the same
+ * room are signed with this key. Because the key is deterministic, a new
+ * session can re-derive it and sign valid NIP-09 deletions for events
+ * published in any prior session - enabling cross-session deletion.
+ *
+ * Salt: "moria-drop-signing-v1-salt" (domain-separated from all other derivations)
+ * Output: 32 raw bytes - used directly as a secp256k1 Nostr private key.
+ * Caller is responsible for zeroing after use.
+ * @param {string} secret
+ * @returns {Uint8Array}
+ */
+export function derive_drop_signing_key(secret) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(secret, wasm.__wbindgen_export2, wasm.__wbindgen_export4);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.derive_drop_signing_key(retptr, ptr0, len0);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var v2 = getArrayU8FromWasm0(r0, r1).slice();
+        wasm.__wbindgen_export3(r0, r1 * 1, 1);
+        return v2;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
  * Derive a 32-byte symmetric session key for a peer.
  *
  * Matches derivePeerSessionKey() in src/crypto/x25519.ts exactly:

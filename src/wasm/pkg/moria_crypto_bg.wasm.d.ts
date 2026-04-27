@@ -3,6 +3,7 @@
 export const memory: WebAssembly.Memory;
 export const decrypt: (a: number, b: number, c: number, d: number, e: number) => void;
 export const derive_drop_id: (a: number, b: number, c: number) => void;
+export const derive_drop_signing_key: (a: number, b: number, c: number) => void;
 export const derive_peer_session_key: (a: number, b: number, c: number, d: number, e: number) => void;
 export const derive_room_id: (a: number, b: number, c: number) => void;
 export const derive_room_key: (a: number, b: number, c: number) => void;

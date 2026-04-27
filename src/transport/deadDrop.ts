@@ -1,4 +1,4 @@
-import { generateSecretKey, finalizeEvent, SimplePool } from 'nostr-tools'
+import { finalizeEvent, SimplePool } from 'nostr-tools'
 import { encryptMessage, decryptMessage } from '@/wasm'
 import { roundTimestamp } from '@crypto/chacha20'
 import type { WireMessage, Alias, MessageType } from '@/types'
@@ -52,7 +52,6 @@ async function getLiveRelays(n: number): Promise<string[]> {
 
 export interface DeadDropReceipt {
   eventId:   string
-  sk:        Uint8Array   // ephemeral signing key - kept for valid NIP-09 deletion
   expiresAt: number       // unix ms when relay event expires
 }
 
@@ -74,6 +73,7 @@ export async function publishDeadDrop(
   alias:      Alias,
   dropId:     string,
   roomKey:    Uint8Array,
+  signingKey: Uint8Array,
   ttlSeconds: number = DROP_TTL_S
 ): Promise<PublishResult> {
   // Privacy envelopes applied to dead drop publishing:
@@ -100,16 +100,17 @@ export async function publishDeadDrop(
     Array.from(encrypted, b => String.fromCharCode(b)).join('')
   )
 
-  const sk  = generateSecretKey()
   const now = Math.floor(nowMs / 1000)
 
   // Jitter created_at backward 0-120s to break relay-level timestamp correlation.
-  const jitter           = Math.floor(Math.random() * 121)
+  const jitter            = Math.floor(Math.random() * 121)
   const jitteredTimestamp = now - jitter
 
   // Anchor expiration to real time so blobs don't expire early due to jitter.
   const expiration = now + ttlSeconds
 
+  // Sign with deterministic key - same key for all events in this room.
+  // Enables cross-session NIP-09 deletion without storing per-event keys.
   const event = finalizeEvent(
     {
       kind:       EVENT_KIND,
@@ -120,14 +121,13 @@ export async function publishDeadDrop(
       ],
       content: b64,
     },
-    sk
+    signingKey
   )
 
   const eventId    = event.id
   const liveRelays = await getLiveRelays(4)
 
   if (liveRelays.length === 0) {
-    sk.fill(0)
     return { success: false, receipt: null, reason: 'no_relays' }
   }
 
@@ -142,24 +142,23 @@ export async function publishDeadDrop(
     const anySuccess = results.some(r => r.status === 'fulfilled')
 
     if (!anySuccess) {
-      sk.fill(0)
       return { success: false, receipt: null, reason: 'publish_failed' }
     }
 
-    // Do NOT zero sk - caller stores it for NIP-09 deletion on terminate
     const expiresAtMs = expiration * 1000
-    return { success: true, receipt: { eventId, sk, expiresAt: expiresAtMs } }
+    return { success: true, receipt: { eventId, expiresAt: expiresAtMs } }
   } finally {
     pool.close(liveRelays)
   }
 }
 
-// NIP-09 deletion - signed with the original ephemeral keypair so relays
-// that validate authorship will honor it. Best-effort: relays that ignore
-// NIP-09 or are unreachable let the 24h NIP-40 expiration tag handle cleanup.
+// NIP-09 deletion for known event IDs - signed with the deterministic signing
+// key so relays that validate authorship will honor it. Best-effort: relays
+// that ignore NIP-09 fall back to the NIP-40 expiration tag.
 export async function deleteDeadDrops(
-  receipts: DeadDropReceipt[],
-  dropId:   string
+  receipts:   DeadDropReceipt[],
+  dropId:     string,
+  signingKey: Uint8Array
 ): Promise<void> {
   if (receipts.length === 0) return
 
@@ -180,22 +179,94 @@ export async function deleteDeadDrops(
             ],
             content: '',
           },
-          receipt.sk
+          signingKey
         )
         return liveRelays.map(url => pool.publish([url], deletion))
       })
     )
   } finally {
     pool.close(liveRelays)
-    receipts.forEach(r => r.sk.fill(0))
+  }
+}
+
+// Fetches all event IDs for a drop ID without decrypting content.
+// Used by deleteAllDeadDrops to build NIP-09 deletion targets.
+async function fetchDropEventIds(dropId: string): Promise<string[]> {
+  const liveRelays = await getLiveRelays(4)
+  if (liveRelays.length === 0) return []
+
+  const now    = Math.floor(Date.now() / 1000)
+  const filter = {
+    kinds: [EVENT_KIND],
+    '#r':  [dropId],
+    since: now - DROP_TTL_S,
+  }
+
+  const pool = new SimplePool()
+  try {
+    const events = await Promise.race([
+      pool.querySync(liveRelays, filter),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), FETCH_TIMEOUT)
+      ),
+    ])
+    // Deduplicate across relay responses
+    return [...new Set(events.map(e => e.id))]
+  } catch {
+    return []
+  } finally {
+    pool.close(liveRelays)
+  }
+}
+
+// NIP-09 deletion for ALL events matching this drop ID - does not require
+// prior receipts. Re-derives event IDs from the relay, signs deletions with
+// the deterministic signing key. Enables:
+//   - Cross-session deletion (new session, same key, old relay events)
+//   - Duress deletion (delete real room events before entering decoy room)
+//   - Terminate deletion (wipe everything, not just this-session receipts)
+export async function deleteAllDeadDrops(
+  dropId:     string,
+  signingKey: Uint8Array
+): Promise<void> {
+  const eventIds = await fetchDropEventIds(dropId)
+  if (eventIds.length === 0) return
+
+  const liveRelays = await getLiveRelays(4)
+  if (liveRelays.length === 0) return
+
+  const now  = Math.floor(Date.now() / 1000)
+  const pool = new SimplePool()
+  try {
+    await Promise.allSettled(
+      eventIds.flatMap(eventId => {
+        const deletion = finalizeEvent(
+          {
+            kind:       5,
+            created_at: now,
+            tags: [
+              ['e', eventId],
+              ['r', dropId],
+            ],
+            content: '',
+          },
+          signingKey
+        )
+        return liveRelays.map(url => pool.publish([url], deletion))
+      })
+    )
+  } finally {
+    pool.close(liveRelays)
   }
 }
 
 // Best-effort poison event - published to the REAL drop when duress password is used.
 // Warns the recipient that the sender may be under coercion. Bypasses rate limiter.
+// Signed with the real room's deterministic signing key so it authenticates correctly.
 export async function publishPoisonEvent(
-  dropId:  string,
-  roomKey: Uint8Array
+  dropId:     string,
+  roomKey:    Uint8Array,
+  signingKey: Uint8Array
 ): Promise<void> {
   const wire: WireMessage = {
     type:      'DURESS',
@@ -207,7 +278,6 @@ export async function publishPoisonEvent(
   const encrypted = await encryptMessage(wire, roomKey)
   const b64 = btoa(Array.from(encrypted, b => String.fromCharCode(b)).join(''))
 
-  const sk  = generateSecretKey()
   const now = Math.floor(Date.now() / 1000)
 
   const event = finalizeEvent(
@@ -220,18 +290,17 @@ export async function publishPoisonEvent(
       ],
       content: b64,
     },
-    sk
+    signingKey
   )
 
   const liveRelays = await getLiveRelays(4)
-  if (liveRelays.length === 0) { sk.fill(0); return }
+  if (liveRelays.length === 0) return
 
   const pool = new SimplePool()
   try {
     await Promise.allSettled(pool.publish(liveRelays, event))
   } finally {
     pool.close(liveRelays)
-    sk.fill(0)
   }
 }
 

@@ -2,15 +2,17 @@ import { USE_WASM_CRYPTO } from './config'
 import init, {
   ping,
   derive_room_id, derive_room_key, derive_drop_id,
+  derive_drop_signing_key as wasm_derive_drop_signing_key,
   encrypt as wasm_encrypt,
   decrypt as wasm_decrypt,
   generate_keypair as wasm_generate_keypair,
   derive_peer_session_key as wasm_derive_peer_session_key,
 } from './pkg/moria_crypto.js'
 import {
-  deriveRoomId  as jsDeriveRoomId,
-  deriveRoomKey as jsDeriveRoomKey,
-  deriveDropId  as jsDeriveDropId,
+  deriveRoomId         as jsDeriveRoomId,
+  deriveRoomKey        as jsDeriveRoomKey,
+  deriveDropId         as jsDeriveDropId,
+  deriveDropSigningKey as jsDeriveDropSigningKey,
 } from '@crypto/argon2id'
 import {
   encryptMessage as jsEncryptMessage,
@@ -122,6 +124,17 @@ export async function deriveDropId(secret: string): Promise<string> {
     return toHex(derive_drop_id(secret))
   }
   return jsDeriveDropId(secret)
+}
+
+// Returns raw 32-byte Nostr signing key - deterministic per room secret.
+// Used to sign all dead drop events so cross-session NIP-09 deletion works.
+// Caller is responsible for zeroing after use.
+export async function deriveDropSigningKey(secret: string): Promise<Uint8Array> {
+  if (USE_WASM_CRYPTO) {
+    await initCrypto()
+    return wasm_derive_drop_signing_key(secret)
+  }
+  return jsDeriveDropSigningKey(secret)
 }
 
 // Returns 8220-byte wire blob - matches encryptMessage() from @crypto/chacha20

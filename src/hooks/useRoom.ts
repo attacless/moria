@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { deriveRoomId, deriveRoomKey, deriveDropId, generateIdentity } from '@/wasm'
+import { deriveRoomId, deriveRoomKey, deriveDropId, deriveDropSigningKey, generateIdentity } from '@/wasm'
 import {
   joinChatRoom,
   leaveRoom,
@@ -12,7 +12,7 @@ import {
 } from '@transport/room'
 import { startDecoyEngine, stopDecoyEngine } from '@transport/decoy'
 import { webRTCAvailable } from '@/capabilities'
-import { publishDeadDrop, fetchDeadDrops, deleteDeadDrops, publishPoisonEvent } from '@transport/deadDrop'
+import { publishDeadDrop, fetchDeadDrops, deleteAllDeadDrops, publishPoisonEvent } from '@transport/deadDrop'
 import type { DeadDropReceipt } from '@transport/deadDrop'
 import type { PublishResult } from '@transport/deadDrop'
 import { roundTimestamp } from '@crypto/chacha20'
@@ -111,10 +111,11 @@ export function useRoom() {
       const realSecret = isDuress ? password.slice(1) : password
 
       // Derive keys for the real room (duress: stripped secret; normal: full password)
-      const [roomId, roomKey, dropId] = await Promise.all([
+      const [roomId, roomKey, dropId, signingKey] = await Promise.all([
         deriveRoomId(realSecret),
         deriveRoomKey(realSecret),
         deriveDropId(realSecret),
+        deriveDropSigningKey(realSecret),
       ])
 
       // Shared WebRTC callbacks - same shape for both normal and decoy rooms
@@ -150,29 +151,34 @@ export function useRoom() {
 
       // ── Duress path ───────────────────────────────────────────────────────
       if (isDuress) {
-        // 1. Publish poison event to the REAL drop (5 s timeout, best-effort).
-        //    Warns the recipient that the sender entered under duress.
+        // 1. Publish poison event to the real drop (5s timeout, best-effort).
+        //    Signed with the real signing key so it authenticates correctly.
+        //    Dead drops are intentionally NOT deleted - the other party needs
+        //    to read them before deciding to TERMINATE.
         await Promise.race([
-          publishPoisonEvent(dropId, roomKey),
+          publishPoisonEvent(dropId, roomKey, signingKey),
           new Promise<void>(r => setTimeout(r, 5_000)),
         ])
 
-        // 2. Zero real key material so it never reaches the decoy session.
+        // 2. Zero all real key material so it never reaches the decoy session.
         roomKey.fill(0)
+        signingKey.fill(0)
 
         // 3. Derive decoy keys from the FULL @password (different key space).
-        const [decoyRoomId, decoyRoomKey, decoyDropId] = await Promise.all([
+        const [decoyRoomId, decoyRoomKey, decoyDropId, decoySigningKey] = await Promise.all([
           deriveRoomId(password),
           deriveRoomKey(password),
           deriveDropId(password),
+          deriveDropSigningKey(password),
         ])
 
         const decoyIdentity = await generateIdentity()
         const decoyKeys: SessionKeys = {
-          roomId:   decoyRoomId,
-          dropId:   decoyDropId,
-          roomKey:  decoyRoomKey,
-          identity: decoyIdentity,
+          roomId:      decoyRoomId,
+          dropId:      decoyDropId,
+          roomKey:     decoyRoomKey,
+          signingKey:  decoySigningKey,
+          identity:    decoyIdentity,
         }
         sessionRef.current = decoyKeys
 
@@ -202,7 +208,7 @@ export function useRoom() {
 
       // ── Normal join ───────────────────────────────────────────────────────
       const identity = await generateIdentity()
-      const keys: SessionKeys = { roomId, dropId, roomKey, identity }
+      const keys: SessionKeys = { roomId, dropId, roomKey, signingKey, identity }
       sessionRef.current = keys
 
       // WebRTC-dependent path: live chat, presence, decoy engine.
@@ -304,7 +310,7 @@ export function useRoom() {
       queuedStatus: 'sending',
     })
 
-    const result: PublishResult = await publishDeadDrop(body, alias, keys.dropId, keys.roomKey, ttlSeconds)
+    const result: PublishResult = await publishDeadDrop(body, alias, keys.dropId, keys.roomKey, keys.signingKey, ttlSeconds)
 
     if (!result.success) {
       updateMessageStatus(optimisticId, { queuedStatus: 'failed' })
@@ -333,8 +339,8 @@ export function useRoom() {
   // ── Leave ────────────────────────────────────────────────────────────────
 
   const leave = useCallback(() => {
-    deadDropReceipts.current.forEach(r => r.sk.fill(0))
     deadDropReceipts.current = []
+    sessionRef.current?.signingKey.fill(0)
     stopDecoyEngine()
     leaveRoom()
     rotateAlias()
@@ -353,15 +359,15 @@ export function useRoom() {
   // ── Terminate ────────────────────────────────────────────────────────────
 
   const terminate = useCallback(async () => {
-    const keys     = sessionRef.current
-    const receipts = deadDropReceipts.current
+    const keys = sessionRef.current
     deadDropReceipts.current = []
 
-    // Fire NIP-09 deletion concurrently with local teardown
-    const deletionPromise = keys && receipts.length > 0
-      ? deleteDeadDrops(receipts, keys.dropId).catch(() => {
-          receipts.forEach(r => r.sk.fill(0))
-        })
+    // Fire NIP-09 deletion for ALL drop events - cross-session capable.
+    // Signing key zeroed in finally() regardless of success or failure.
+    const deletionPromise = keys
+      ? deleteAllDeadDrops(keys.dropId, keys.signingKey)
+          .catch(() => {})
+          .finally(() => { keys.signingKey.fill(0) })
       : Promise.resolve()
 
     stopDecoyEngine()
@@ -384,8 +390,8 @@ export function useRoom() {
   // ── Panic ────────────────────────────────────────────────────────────────
 
   const panic = useCallback(() => {
-    deadDropReceipts.current.forEach(r => r.sk.fill(0))
     deadDropReceipts.current = []
+    sessionRef.current?.signingKey.fill(0)
     stopDecoyEngine()
     leaveRoom()
     clearMessages()

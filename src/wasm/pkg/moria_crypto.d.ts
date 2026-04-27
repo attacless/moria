@@ -11,7 +11,7 @@
  * - Returns raw plaintext bytes (caller decodes UTF-8 JSON → WireMessage)
  *
  * Returns Err on authentication failure or malformed input (do not throw
- * across the boundary - caller must handle the JS exception).
+ * across the boundary — caller must handle the JS exception).
  */
 export function decrypt(wire: Uint8Array, key: Uint8Array): Uint8Array;
 
@@ -21,6 +21,20 @@ export function decrypt(wire: Uint8Array, key: Uint8Array): Uint8Array;
  * Salt: "moria-drop-id-v1-salt"
  */
 export function derive_drop_id(secret: string): Uint8Array;
+
+/**
+ * Derives the deterministic Nostr signing key for dead drop events.
+ *
+ * All dead drop events (publish, poison, NIP-09 deletion) for the same
+ * room are signed with this key. Because the key is deterministic, a new
+ * session can re-derive it and sign valid NIP-09 deletions for events
+ * published in any prior session - enabling cross-session deletion.
+ *
+ * Salt: "moria-drop-signing-v1-salt" (domain-separated from all other derivations)
+ * Output: 32 raw bytes - used directly as a secp256k1 Nostr private key.
+ * Caller is responsible for zeroing after use.
+ */
+export function derive_drop_signing_key(secret: string): Uint8Array;
 
 /**
  * Derive a 32-byte symmetric session key for a peer.
@@ -34,7 +48,7 @@ export function derive_drop_id(secret: string): Uint8Array;
  *        length = 32
  *   3. Zero the raw shared secret immediately (SharedSecret zeroizes on drop)
  *
- * Returns 32-byte session key - used as ChaCha20-Poly1305 key for this peer.
+ * Returns 32-byte session key — used as ChaCha20-Poly1305 key for this peer.
  */
 export function derive_peer_session_key(my_private_key: Uint8Array, their_public_key: Uint8Array): Uint8Array;
 
@@ -87,6 +101,7 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly decrypt: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly derive_drop_id: (a: number, b: number, c: number) => void;
+    readonly derive_drop_signing_key: (a: number, b: number, c: number) => void;
     readonly derive_peer_session_key: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly derive_room_id: (a: number, b: number, c: number) => void;
     readonly derive_room_key: (a: number, b: number, c: number) => void;

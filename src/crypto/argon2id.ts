@@ -45,6 +45,14 @@ export async function deriveDropId(password: string): Promise<string> {
   return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
+// Returns raw 32-byte Nostr signing key - deterministic per room secret.
+// Used to sign all dead drop events (publish, poison, NIP-09 deletion)
+// so that cross-session deletion is possible without storing per-event keys.
+// Caller is responsible for zeroing after use.
+export async function deriveDropSigningKey(password: string): Promise<Uint8Array> {
+  return deriveViaWorker(password, 'drop-signing-key')
+}
+
 // Zero a key buffer in place. Call this on all key material on disconnect.
 export function zeroBytes(buf: Uint8Array): void {
   crypto.getRandomValues(buf as Uint8Array<ArrayBuffer>) // overwrite with random before zero

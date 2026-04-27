@@ -17,9 +17,10 @@ const T_COST: u32 = 3;
 const P_COST: u32 = 1;
 const DK_LEN: usize = 32;
 
-const SALT_ROOM_ID:  &[u8] = b"moria-room-id-v1-salt";
-const SALT_ROOM_KEY: &[u8] = b"moria-room-key-v1-salt";
-const SALT_DROP_ID:  &[u8] = b"moria-drop-id-v1-salt";
+const SALT_ROOM_ID:      &[u8] = b"moria-room-id-v1-salt";
+const SALT_ROOM_KEY:     &[u8] = b"moria-room-key-v1-salt";
+const SALT_DROP_ID:      &[u8] = b"moria-drop-id-v1-salt";
+const SALT_DROP_SIGNING: &[u8] = b"moria-drop-signing-v1-salt";
 
 // ── ChaCha20-Poly1305 constants ───────────────────────────────────────────────
 // Must match src/crypto/chacha20.ts exactly:
@@ -76,6 +77,21 @@ pub fn derive_drop_id(secret: &str) -> Vec<u8> {
     argon2id_derive(secret.as_bytes(), SALT_DROP_ID)
 }
 
+/// Derives the deterministic Nostr signing key for dead drop events.
+///
+/// All dead drop events (publish, poison, NIP-09 deletion) for the same
+/// room are signed with this key. Because the key is deterministic, a new
+/// session can re-derive it and sign valid NIP-09 deletions for events
+/// published in any prior session - enabling cross-session deletion.
+///
+/// Salt: "moria-drop-signing-v1-salt" (domain-separated from all other derivations)
+/// Output: 32 raw bytes - used directly as a secp256k1 Nostr private key.
+/// Caller is responsible for zeroing after use.
+#[wasm_bindgen]
+pub fn derive_drop_signing_key(secret: &str) -> Vec<u8> {
+    argon2id_derive(secret.as_bytes(), SALT_DROP_SIGNING)
+}
+
 // ── Exported: ChaCha20-Poly1305 encrypt ───────────────────────────────────────
 
 /// Encrypts raw plaintext bytes with a 32-byte key.
@@ -102,7 +118,7 @@ pub fn encrypt(plaintext: &[u8], key: &[u8]) -> Result<Vec<u8>, JsValue> {
     }
 
     // ── Pad: [2-byte LE length][content][cryptographic random fill] ──────────
-    // Matches chacha20.ts pad() exactly — uses random fill, not zeros.
+    // Matches chacha20.ts pad() exactly  -  uses random fill, not zeros.
     let mut padded = Zeroizing::new(vec![0u8; BLOCK_SIZE]);
     padded[0] = (plaintext.len() & 0xff) as u8;
     padded[1] = ((plaintext.len() >> 8) & 0xff) as u8;
@@ -119,7 +135,7 @@ pub fn encrypt(plaintext: &[u8], key: &[u8]) -> Result<Vec<u8>, JsValue> {
     let ciphertext = cipher
         .encrypt(nonce, padded.as_slice())
         .map_err(|e| JsValue::from_str(&format!("encrypt: aead error: {e}")))?;
-    // padded is Zeroizing — wiped here on drop
+    // padded is Zeroizing  -  wiped here on drop
 
     // ── Wire: nonce || ciphertext+tag ────────────────────────────────────────
     let mut wire = vec![0u8; WIRE_SIZE];
@@ -140,7 +156,7 @@ pub fn encrypt(plaintext: &[u8], key: &[u8]) -> Result<Vec<u8>, JsValue> {
 /// - Returns raw plaintext bytes (caller decodes UTF-8 JSON → WireMessage)
 ///
 /// Returns Err on authentication failure or malformed input (do not throw
-/// across the boundary — caller must handle the JS exception).
+/// across the boundary  -  caller must handle the JS exception).
 #[wasm_bindgen]
 pub fn decrypt(wire: &[u8], key: &[u8]) -> Result<Vec<u8>, JsValue> {
     if wire.len() != WIRE_SIZE {
@@ -173,7 +189,7 @@ pub fn decrypt(wire: &[u8], key: &[u8]) -> Result<Vec<u8>, JsValue> {
     }
 
     Ok(padded[2..2 + len].to_vec())
-    // padded is Zeroizing — wiped on drop
+    // padded is Zeroizing  -  wiped on drop
 }
 
 // ── Exported: X25519 ephemeral keypair generation ─────────────────────────────
@@ -196,7 +212,7 @@ pub fn generate_keypair() -> Vec<u8> {
     out[..32].copy_from_slice(private.as_bytes());
     out[32..].copy_from_slice(public.as_bytes());
     out
-    // StaticSecret (private) zeroizes on drop here — bytes already copied to out
+    // StaticSecret (private) zeroizes on drop here  -  bytes already copied to out
 }
 
 // ── Exported: X25519 ECDH + HKDF-SHA256 session key derivation ───────────────
@@ -212,7 +228,7 @@ pub fn generate_keypair() -> Vec<u8> {
 ///        length = 32
 ///   3. Zero the raw shared secret immediately (SharedSecret zeroizes on drop)
 ///
-/// Returns 32-byte session key — used as ChaCha20-Poly1305 key for this peer.
+/// Returns 32-byte session key  -  used as ChaCha20-Poly1305 key for this peer.
 #[wasm_bindgen]
 pub fn derive_peer_session_key(
     my_private_key: &[u8],
@@ -237,7 +253,7 @@ pub fn derive_peer_session_key(
     let pub_bytes: [u8; 32] = their_public_key.try_into().unwrap();
     let public = PublicKey::from(pub_bytes);
 
-    // X25519 ECDH — SharedSecret zeroizes on drop
+    // X25519 ECDH  -  SharedSecret zeroizes on drop
     let shared = private.diffie_hellman(&public);
 
     // HKDF-SHA256: salt=None (→ 32 zero bytes per RFC 5869, matches noble undefined)
