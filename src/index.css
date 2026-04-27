@@ -96,7 +96,7 @@
   --strength-strong:  rgba(240, 248, 255, 1.0);
 
   --font-hero:  'Ronzino', Georgia, serif;
-  --font-body:  'Inter', - apple-system, system-ui, sans-serif;
+  --font-body: 'Inter', -apple-system, system-ui, sans-serif;
   --font-mono:  'Ronzino', Georgia, serif;
 
   --ease-out:     cubic-bezier(0.4, 0, 0.2, 1);
