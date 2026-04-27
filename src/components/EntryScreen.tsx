@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, type FormEvent } from 'react'
 import { StarSvg } from './StarSvg'
+import { webRTCAvailable } from '@/capabilities'
 
 interface EntryScreenProps {
   onJoin:    (password: string) => Promise<void>
@@ -35,15 +36,22 @@ const RELAY_POOL = [
   'wss://relay.nostr.wirednet.jp',
 ]
 
-export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
-  const [password, setPassword]         = useState('')
-  const [showPass, setShowPass]         = useState(false)
-  const [focused, setFocused]           = useState(false)
-  const [liveRelayCount, setLiveRelayCount] = useState<number | null>(null)
+function handleCloseTab() {
+  window.close()
+  // If browser blocks self-close (tab opened directly by user), navigate away
+  setTimeout(() => { location.href = 'about:blank' }, 300)
+}
 
-  const strength    = getStrength(password)
-  const cfg         = STRENGTH_CONFIG[strength]
-  const canJoin     = password.length >= 6 && !isJoining
+export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
+  const [password, setPassword]             = useState('')
+  const [showPass, setShowPass]             = useState(false)
+  const [focused, setFocused]               = useState(false)
+  const [liveRelayCount, setLiveRelayCount] = useState<number | null>(null)
+  const [showWebRTCModal, setShowWebRTCModal] = useState(!webRTCAvailable)
+
+  const strength     = getStrength(password)
+  const cfg          = STRENGTH_CONFIG[strength]
+  const canJoin      = password.length >= 6 && !isJoining
   const showWeakHint = focused && password.length > 0 && password.length < 8
 
   useEffect(() => {
@@ -148,6 +156,29 @@ export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
         {relayState === 'connecting' ? 'CONNECTING...' : relayState === 'online' ? 'ONLINE' : 'OFFLINE'}
       </span>
     </div>
+
+    {/* WebRTC unavailable modal - shown once when WebRTC is not supported */}
+    {showWebRTCModal && (
+      <div className="modal-backdrop">
+        <div className="warn-dialog">
+          <div className="warn-title">live chat unavailable</div>
+          <div className="warn-body">
+            Your browser does not support WebRTC. This is common in Tor Browser and iOS Lockdown Mode.
+          </div>
+          <div className="warn-body" style={{ marginTop: '-12px' }}>
+            You can still use Moria in dead drop mode. Messages are encrypted and queued on the relay network for your recipient to retrieve later.
+          </div>
+          <div className="warn-actions">
+            <button className="warn-btn ghost" onClick={handleCloseTab}>
+              close
+            </button>
+            <button className="warn-btn primary" onClick={() => setShowWebRTCModal(false)}>
+              continue in dead drop mode
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   )
 }

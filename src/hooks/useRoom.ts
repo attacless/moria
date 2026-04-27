@@ -11,6 +11,7 @@ import {
   getPeerSessions,
 } from '@transport/room'
 import { startDecoyEngine, stopDecoyEngine } from '@transport/decoy'
+import { webRTCAvailable } from '@/capabilities'
 import { publishDeadDrop, fetchDeadDrops, deleteDeadDrops } from '@transport/deadDrop'
 import type { DeadDropReceipt } from '@transport/deadDrop'
 import type { PublishResult } from '@transport/deadDrop'
@@ -60,47 +61,52 @@ export function useRoom() {
       const keys: SessionKeys = { roomId, dropId, roomKey, identity }
       sessionRef.current = keys
 
-      await joinChatRoom(keys, {
-        onMessage: (msg: DisplayMessage) => addMessage(msg),
+      // WebRTC-dependent path: live chat, presence, decoy engine.
+      // Skipped on browsers without WebRTC (iOS Lockdown Mode, Tor Browser).
+      // Dead drop mode works without WebRTC - Nostr relay comms are independent.
+      if (webRTCAvailable) {
+        await joinChatRoom(keys, {
+          onMessage: (msg: DisplayMessage) => addMessage(msg),
 
-        onPeerJoin: (_peerId: PeerId) => {
-          setPeerCount(getPeerCount())
-          autoConfirmDeadDrops()
-          clearQueuedStatus()
-        },
+          onPeerJoin: (_peerId: PeerId) => {
+            setPeerCount(getPeerCount())
+            autoConfirmDeadDrops()
+            clearQueuedStatus()
+          },
 
-        onPeerLeave: (_peerId: PeerId) => {
-          setPeerCount(getPeerCount())
-          setPresenceCount(getRawPeerCount())
-          extendBurnTimers(Date.now() + 6 * 60 * 60 * 1_000)
-        },
+          onPeerLeave: (_peerId: PeerId) => {
+            setPeerCount(getPeerCount())
+            setPresenceCount(getRawPeerCount())
+            extendBurnTimers(Date.now() + 6 * 60 * 60 * 1_000)
+          },
 
-        onPresenceJoin: (_peerId: PeerId) => {
-          setPresenceCount(getRawPeerCount())   // raw presence - immediate
-        },
+          onPresenceJoin: (_peerId: PeerId) => {
+            setPresenceCount(getRawPeerCount())   // raw presence - immediate
+          },
 
-        onPresenceLeave: (_peerId: PeerId) => {
-          setPresenceCount(getRawPeerCount())
-        },
+          onPresenceLeave: (_peerId: PeerId) => {
+            setPresenceCount(getRawPeerCount())
+          },
 
-        onTerminate: (terminatedAlias: Alias) => {
-          removeByAlias(terminatedAlias)
-        },
+          onTerminate: (terminatedAlias: Alias) => {
+            removeByAlias(terminatedAlias)
+          },
 
-        onRoomFull: () => setRoomFull(true),
-      })
+          onRoomFull: () => setRoomFull(true),
+        })
 
-      startDecoyEngine(
-        (data, targets) => sendRawWire(data, targets),
-        () => getPeerSessions()
-      )
+        startDecoyEngine(
+          (data, targets) => sendRawWire(data, targets),
+          () => getPeerSessions()
+        )
+      }
 
       setScreen('chat')
       mountSecurityMeasures()
 
       // Fetch queued dead drops after a short window so the dedup set
       // includes any live messages that arrived via WebRTC during handshake.
-      // Dead drop polling is independent of peer connection — it always runs.
+      // Dead drop polling is independent of peer connection - it always runs.
       setTimeout(async () => {
         if (!sessionRef.current) return  // user may have left already
 
@@ -131,7 +137,7 @@ export function useRoom() {
             addMessages(dropMessages)
             // Peers may have connected during the relay fetch window.
             // autoConfirmDeadDrops() fired on peer join but before these
-            // messages existed — call it again so burn timers start immediately.
+            // messages existed - call it again so burn timers start immediately.
             if (getPeerCount() > 0) autoConfirmDeadDrops()
           }
         }

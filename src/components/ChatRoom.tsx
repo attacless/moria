@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { MessageList } from './MessageList'
 import { InputBar }    from './InputBar'
+import { webRTCAvailable } from '@/capabilities'
 import type { DisplayMessage } from '@/types'
 
 interface ChatRoomProps {
@@ -73,11 +74,13 @@ export function ChatRoom({
     ? roomId.slice(0, 8)
     : roomId
 
-  const peerDotClass = peerCount > 0 ? 'active'
+  const peerDotClass = !webRTCAvailable ? 'waiting'
+    : peerCount > 0 ? 'active'
     : presenceCount > 0 ? 'connecting'
     : 'waiting'
 
-  const peerLabel = peerCount > 0 ? `${peerCount + 1} in room`
+  const peerLabel = !webRTCAvailable ? 'dead drop mode'
+    : peerCount > 0 ? `${peerCount + 1} in room`
     : presenceCount > 0 ? 'connecting...'
     : 'waiting'
 
