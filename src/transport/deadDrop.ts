@@ -13,7 +13,7 @@ const RELAY_POOL = [
   'wss://relay.nostr.wirednet.jp',
 ]
 
-const EVENT_KIND    = 1
+const EVENT_KIND    = 1337  // custom regular kind - not indexed by social Nostr clients
 const DROP_TTL_S    = 86_400
 const PROBE_TIMEOUT = 2_000    // 2s to confirm relay is reachable
 const FETCH_TIMEOUT = 8_000    // 8s for actual query once reachable
@@ -221,10 +221,9 @@ async function fetchDropEventIds(dropId: string): Promise<string[]> {
 
 // NIP-09 deletion for ALL events matching this drop ID - does not require
 // prior receipts. Re-derives event IDs from the relay, signs deletions with
-// the deterministic signing key. Enables:
+// the deterministic signing key. Called only by terminate(). Enables:
 //   - Cross-session deletion (new session, same key, old relay events)
-//   - Duress deletion (delete real room events before entering decoy room)
-//   - Terminate deletion (wipe everything, not just this-session receipts)
+//   - Full wipe on TERMINATE (all relay events, not just this-session receipts)
 export async function deleteAllDeadDrops(
   dropId:     string,
   signingKey: Uint8Array
