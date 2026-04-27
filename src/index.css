@@ -516,7 +516,7 @@ input, textarea { font-family: var(--font-body); }
   justify-content: space-between;
   padding: 12px 20px;
   padding-top: max(12px, env(safe-area-inset-top, 12px));
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
   min-height: 48px;
   position: relative;
@@ -938,11 +938,16 @@ input, textarea { font-family: var(--font-body); }
   gap: 8px;
   padding: 10px 16px;
   padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-subtle);
   background: var(--bg-chat);
   flex-shrink: 0;
   position: relative;
   z-index: 10;
+}
+
+/* TTL selector acts as the visual break from the chat area - no redundant line below it */
+.ttl-selector + .input-bar {
+  border-top: none;
 }
 
 .input-bar.dragging {
