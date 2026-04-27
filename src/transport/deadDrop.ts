@@ -1,7 +1,7 @@
 import { generateSecretKey, finalizeEvent, SimplePool } from 'nostr-tools'
 import { encryptMessage, decryptMessage } from '@/wasm'
 import { roundTimestamp } from '@crypto/chacha20'
-import type { WireMessage, Alias } from '@/types'
+import type { WireMessage, Alias, MessageType } from '@/types'
 
 // Larger pool - more fallbacks if individual relays are down
 const RELAY_POOL = [
@@ -191,10 +191,54 @@ export async function deleteDeadDrops(
   }
 }
 
+// Best-effort poison event - published to the REAL drop when duress password is used.
+// Warns the recipient that the sender may be under coercion. Bypasses rate limiter.
+export async function publishPoisonEvent(
+  dropId:  string,
+  roomKey: Uint8Array
+): Promise<void> {
+  const wire: WireMessage = {
+    type:      'DURESS',
+    alias:     'system',
+    timestamp: roundTimestamp(Date.now()),
+    body:      'duress',
+  }
+
+  const encrypted = await encryptMessage(wire, roomKey)
+  const b64 = btoa(Array.from(encrypted, b => String.fromCharCode(b)).join(''))
+
+  const sk  = generateSecretKey()
+  const now = Math.floor(Date.now() / 1000)
+
+  const event = finalizeEvent(
+    {
+      kind:       EVENT_KIND,
+      created_at: now,
+      tags: [
+        ['r', dropId],
+        ['expiration', String(now + DROP_TTL_S)],
+      ],
+      content: b64,
+    },
+    sk
+  )
+
+  const liveRelays = await getLiveRelays(4)
+  if (liveRelays.length === 0) { sk.fill(0); return }
+
+  const pool = new SimplePool()
+  try {
+    await Promise.allSettled(pool.publish(liveRelays, event))
+  } finally {
+    pool.close(liveRelays)
+    sk.fill(0)
+  }
+}
+
 export async function fetchDeadDrops(
   dropId:  string,
   roomKey: Uint8Array
-): Promise<{ alias: Alias; timestamp: number; body: string }[]> {
+): Promise<{ alias: Alias; timestamp: number; body: string; type: MessageType }[]> {
   const nowMs = Date.now()
   if (nowMs - lastFetchTime < FETCH_RATE_LIMIT_MS) {
     console.warn('[deadDrop] fetch rate limited - too soon after last fetch')
@@ -204,7 +248,7 @@ export async function fetchDeadDrops(
 
   const now    = Math.floor(nowMs / 1000)
   const seen   = new Set<string>()
-  const results: { alias: Alias; timestamp: number; body: string }[] = []
+  const results: { alias: Alias; timestamp: number; body: string; type: MessageType }[] = []
 
   const liveRelays = await getLiveRelays(4)
 
@@ -233,6 +277,7 @@ export async function fetchDeadDrops(
         alias:     decrypted.alias,
         timestamp: decrypted.timestamp,
         body:      decrypted.body,
+        type:      decrypted.type,
       })
     } catch {
       // malformed - skip

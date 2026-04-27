@@ -31,7 +31,7 @@ export async function initCrypto(): Promise<void> {
   if (initialized) return
   await init()
   initialized = true
-  ping() // smoke-test: throws if WASM failed to load — intentional
+  ping() // smoke-test: throws if WASM failed to load - intentional
 }
 
 export function isCryptoReady(): boolean {
@@ -43,7 +43,7 @@ const toHex = (b: Uint8Array): string =>
   Array.from(b).map(x => x.toString(16).padStart(2, '0')).join('')
 
 // ── WASM-direct exports (always WASM, bypass flag) ────────────────────────
-// Retained for phase-2/3/4 verification blocks — remove with them.
+// Retained for phase-2/3/4 verification blocks - remove with them.
 
 export async function wasmDeriveRoomId(secret: string): Promise<Uint8Array> {
   await initCrypto()
@@ -58,7 +58,7 @@ export async function wasmDeriveDropId(secret: string): Promise<Uint8Array> {
   return derive_drop_id(secret)
 }
 
-// encrypt(plaintext bytes, key) → 8220-byte wire blob — throws on error
+// encrypt(plaintext bytes, key) → 8220-byte wire blob - throws on error
 export async function wasmEncrypt(plaintext: Uint8Array, key: Uint8Array): Promise<Uint8Array> {
   await initCrypto()
   return wasm_encrypt(plaintext, key)
@@ -93,11 +93,11 @@ export async function wasmDerivePeerSessionKey(
   return wasm_derive_peer_session_key(myPrivateKey, theirPublicKey)
 }
 
-// ── Unified exports — routed through feature flag ─────────────────────────
+// ── Unified exports - routed through feature flag ─────────────────────────
 // Return types match @crypto/argon2id / @crypto/chacha20 / @crypto/x25519
 // for drop-in replacement. JS originals are sync; bridge is async.
 
-// Returns hex string — matches deriveRoomId() from @crypto/argon2id
+// Returns hex string - matches deriveRoomId() from @crypto/argon2id
 export async function deriveRoomId(secret: string): Promise<string> {
   if (USE_WASM_CRYPTO) {
     await initCrypto()
@@ -106,7 +106,7 @@ export async function deriveRoomId(secret: string): Promise<string> {
   return jsDeriveRoomId(secret)
 }
 
-// Returns raw bytes — matches deriveRoomKey() from @crypto/argon2id
+// Returns raw bytes - matches deriveRoomKey() from @crypto/argon2id
 export async function deriveRoomKey(secret: string): Promise<Uint8Array> {
   if (USE_WASM_CRYPTO) {
     await initCrypto()
@@ -115,7 +115,7 @@ export async function deriveRoomKey(secret: string): Promise<Uint8Array> {
   return jsDeriveRoomKey(secret)
 }
 
-// Returns hex string — matches deriveDropId() from @crypto/argon2id
+// Returns hex string - matches deriveDropId() from @crypto/argon2id
 export async function deriveDropId(secret: string): Promise<string> {
   if (USE_WASM_CRYPTO) {
     await initCrypto()
@@ -124,7 +124,7 @@ export async function deriveDropId(secret: string): Promise<string> {
   return jsDeriveDropId(secret)
 }
 
-// Returns 8220-byte wire blob — matches encryptMessage() from @crypto/chacha20
+// Returns 8220-byte wire blob - matches encryptMessage() from @crypto/chacha20
 export async function encryptMessage(message: WireMessage, key: Uint8Array): Promise<Uint8Array> {
   if (USE_WASM_CRYPTO) {
     await initCrypto()
@@ -135,7 +135,7 @@ export async function encryptMessage(message: WireMessage, key: Uint8Array): Pro
   return jsEncryptMessage(message, key)
 }
 
-// Returns WireMessage | null — matches decryptMessage() from @crypto/chacha20
+// Returns WireMessage | null - matches decryptMessage() from @crypto/chacha20
 export async function decryptMessage(wire: Uint8Array, key: Uint8Array): Promise<WireMessage | null> {
   if (USE_WASM_CRYPTO) {
     await initCrypto()
@@ -149,7 +149,7 @@ export async function decryptMessage(wire: Uint8Array, key: Uint8Array): Promise
   return jsDecryptMessage(wire, key)
 }
 
-// Returns IdentityKeypair — matches generateIdentity() from @crypto/x25519
+// Returns IdentityKeypair - matches generateIdentity() from @crypto/x25519
 // NOTE: Call sites in useRoom.ts will need to await when swapped in Phase 5.
 export async function generateIdentity(): Promise<IdentityKeypair> {
   if (USE_WASM_CRYPTO) {
@@ -163,7 +163,7 @@ export async function generateIdentity(): Promise<IdentityKeypair> {
   return jsGenerateIdentity()
 }
 
-// Returns 32-byte session key — matches derivePeerSessionKey() from @crypto/x25519
+// Returns 32-byte session key - matches derivePeerSessionKey() from @crypto/x25519
 // NOTE: Call sites in room.ts will need to await when swapped in Phase 5.
 export async function derivePeerSessionKey(
   myPrivateKey:   Uint8Array,
@@ -176,7 +176,7 @@ export async function derivePeerSessionKey(
   return jsDeriveSessionKey(myPrivateKey, theirPublicKey)
 }
 
-// destroyIdentity / destroyPeerSession: pure memory zeroing — no WASM path needed.
+// destroyIdentity / destroyPeerSession: pure memory zeroing - no WASM path needed.
 // Re-exported here so Phase 5 can import everything from a single entry point.
 export function destroyIdentity(identity: IdentityKeypair): void {
   jsDestroyIdentity(identity)
@@ -185,7 +185,7 @@ export function destroyPeerSession(sessionKey: Uint8Array): void {
   jsDestroyPeerSession(sessionKey)
 }
 
-// ── Synchronous bridge variants — for Trystero callbacks ─────────────────────
+// ── Synchronous bridge variants - for Trystero callbacks ─────────────────────
 // Trystero's ActionReceiver discards the return value of its handler; async
 // callbacks produce silently-dropped Promises.  These sync variants call the
 // WASM functions directly (WASM is guaranteed initialized before joinChatRoom)

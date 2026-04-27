@@ -35,6 +35,7 @@ export default function App() {
     roomFull,
     clipboardEnabled,
     toggleClipboard,
+    duressDetected,
   } = useRoom()
 
   const [stegoMode, setStegoMode] = useState(false)
@@ -134,6 +135,7 @@ export default function App() {
               roomFull={roomFull}
               clipboardEnabled={clipboardEnabled}
               onToggleClipboard={toggleClipboard}
+              duressDetected={duressDetected}
             />
           )}
 

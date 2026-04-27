@@ -49,10 +49,12 @@ export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
   const [liveRelayCount, setLiveRelayCount] = useState<number | null>(null)
   const [showWebRTCModal, setShowWebRTCModal] = useState(!webRTCAvailable)
 
-  const strength     = getStrength(password)
+  // Strip leading '@' before evaluating strength/length - duress prefix is invisible to the meter
+  const effectivePassword = password.startsWith('@') ? password.slice(1) : password
+  const strength     = getStrength(effectivePassword)
   const cfg          = STRENGTH_CONFIG[strength]
-  const canJoin      = password.length >= 6 && !isJoining
-  const showWeakHint = focused && password.length > 0 && password.length < 8
+  const canJoin      = effectivePassword.length >= 6 && !isJoining
+  const showWeakHint = focused && effectivePassword.length > 0 && effectivePassword.length < 8
 
   useEffect(() => {
     let cancelled = false

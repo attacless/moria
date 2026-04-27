@@ -44,7 +44,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
 
   useEffect(() => {
     if (messages.length > prevCountRef.current) {
-      // Only scroll when a message was ADDED — not when burn timer removes one
+      // Only scroll when a message was ADDED - not when burn timer removes one
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
     prevCountRef.current = messages.length
@@ -52,7 +52,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
 
   function handleReveal(id: string, needsConfirm: boolean) {
     if (needsConfirm) {
-      // Pre-reveal envelope: confirm — message defaults to open (not in collapsedDrops)
+      // Pre-reveal envelope: confirm - message defaults to open (not in collapsedDrops)
       onConfirmDeadDrop(id)
     } else {
       // Revealed/auto-confirmed: one tap toggles collapsed/open
@@ -78,13 +78,13 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
           )
         }
 
-        // Received dead drop that has NOT been confirmed yet — render collapsed/reveal UI
+        // Received dead drop that has NOT been confirmed yet - render collapsed/reveal UI
         // Own dead drops (queued messages) are never collapsed
         const isReceivedDeadDrop = !isMe && !!msg.isDeadDrop
         const needsConfirm       = isReceivedDeadDrop && !msg.confirmed
 
         if (isReceivedDeadDrop && needsConfirm) {
-          // Collapsed dead drop envelope — not yet confirmed
+          // Collapsed dead drop envelope - not yet confirmed
           return (
             <div
               key={msg.id}
@@ -101,7 +101,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
         }
 
         if (isReceivedDeadDrop) {
-          // Revealed dead drop (confirmed) — open by default, single tap to toggle
+          // Revealed dead drop (confirmed) - open by default, single tap to toggle
           const isOpen = !collapsedDrops.has(msg.id)
 
           // Fade-out approaching expiry
@@ -136,7 +136,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
           )
         }
 
-        // Live chat message (own or received non-dead-drop) — unchanged
+        // Live chat message (own or received non-dead-drop) - unchanged
         const opacity    = burn === null ? 1 : burn > 30 ? 1 : Math.max(0.05, burn / 30)
         const transition = burn !== null && burn <= 30 ? 'opacity 1s linear' : 'none'
 
@@ -146,7 +146,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
             className={`message fade-in ${isMe ? 'own' : 'received'}`}
             style={{ opacity, transition }}
           >
-            {/* Meta row: timestamp (left) + burn timer (right) — no alias */}
+            {/* Meta row: timestamp (left) + burn timer (right) - no alias */}
             <div className="msg-meta">
               <span className="msg-time">{formatTime(msg.timestamp)}</span>
               {burn !== null && !(isMe && msg.queuedStatus) && (
@@ -161,7 +161,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
 
             {/* Footer: status text */}
             <div className="msg-footer">
-              {/* Own message status — failed takes priority, expiry replaces standalone queued badge */}
+              {/* Own message status - failed takes priority, expiry replaces standalone queued badge */}
               {isMe && msg.queuedStatus && (
                 <span className={`msg-status ${msg.queuedStatus}`}>
                   {msg.queuedStatus === 'failed'  && 'failed · try again'}

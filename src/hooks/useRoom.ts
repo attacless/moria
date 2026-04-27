@@ -12,7 +12,7 @@ import {
 } from '@transport/room'
 import { startDecoyEngine, stopDecoyEngine } from '@transport/decoy'
 import { webRTCAvailable } from '@/capabilities'
-import { publishDeadDrop, fetchDeadDrops, deleteDeadDrops } from '@transport/deadDrop'
+import { publishDeadDrop, fetchDeadDrops, deleteDeadDrops, publishPoisonEvent } from '@transport/deadDrop'
 import type { DeadDropReceipt } from '@transport/deadDrop'
 import type { PublishResult } from '@transport/deadDrop'
 import { roundTimestamp } from '@crypto/chacha20'
@@ -20,6 +20,61 @@ import { mountSecurityMeasures, unmountSecurityMeasures, disableCopyPrevention, 
 import { useMessages } from './useMessages'
 import { useAlias } from './useAlias'
 import type { SessionKeys, DisplayMessage, PeerId, AppScreen, Alias } from '@/types'
+
+// ── Duress helpers ────────────────────────────────────────────────────────────
+
+const DECOY_TEMPLATES = [
+  'sounds good',
+  'can we talk later?',
+  'just got your message',
+  'ok',
+  'when are you free?',
+  'got it',
+  'let me know',
+  'makes sense',
+  'sure, works for me',
+  'on my way',
+]
+
+function xorshift32(seed: number): () => number {
+  let state = seed >>> 0 || 1
+  return () => {
+    state ^= state << 13
+    state ^= state >>> 17
+    state ^= state << 5
+    return (state >>> 0) / 4294967296
+  }
+}
+
+function generateDecoyMessages(roomKey: Uint8Array, myAlias: Alias): DisplayMessage[] {
+  const seed = (roomKey[0]! | (roomKey[1]! << 8) | (roomKey[2]! << 16) | (roomKey[3]! << 24)) >>> 0
+  const rand = xorshift32(seed)
+
+  // Deterministic peer alias derived from PRNG (realistic 8-char hex)
+  const peerAlias = Array.from({ length: 4 }, () => Math.floor(rand() * 256))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+
+  const count = 3 + Math.floor(rand() * 4)   // 3-6 messages
+  const now   = Date.now()
+  const msgs: DisplayMessage[] = []
+
+  for (let i = 0; i < count; i++) {
+    const idx    = Math.floor(rand() * DECOY_TEMPLATES.length)
+    const ageMs  = Math.floor(rand() * 6 * 60 * 60 * 1_000)
+    const isMine = rand() < 0.4
+
+    msgs.push({
+      id:        crypto.randomUUID(),
+      alias:     isMine ? myAlias : peerAlias,
+      timestamp: roundTimestamp(now - ageMs),
+      body:      DECOY_TEMPLATES[idx % DECOY_TEMPLATES.length]!,
+      isMine,
+    })
+  }
+
+  return msgs.sort((a, b) => a.timestamp - b.timestamp)
+}
 
 export function useRoom() {
   const [screen, setScreen]                 = useState<AppScreen>('entry')
@@ -33,6 +88,7 @@ export function useRoom() {
   const [rateLimited, setRateLimited]       = useState(false)
   const [roomFull, setRoomFull]             = useState(false)
   const [clipboardEnabled, setClipboardEnabled] = useState(false)
+  const [duressDetected, setDuressDetected]     = useState(false)
   const lastSentRef                         = useRef<number>(0)
 
   const sessionRef      = useRef<SessionKeys | null>(null)
@@ -51,12 +107,100 @@ export function useRoom() {
     setError(null)
 
     try {
+      const isDuress   = password.startsWith('@')
+      const realSecret = isDuress ? password.slice(1) : password
+
+      // Derive keys for the real room (duress: stripped secret; normal: full password)
       const [roomId, roomKey, dropId] = await Promise.all([
-        deriveRoomId(password),
-        deriveRoomKey(password),
-        deriveDropId(password),
+        deriveRoomId(realSecret),
+        deriveRoomKey(realSecret),
+        deriveDropId(realSecret),
       ])
 
+      // Shared WebRTC callbacks - same shape for both normal and decoy rooms
+      const roomCallbacks = {
+        onMessage: (msg: DisplayMessage) => addMessage(msg),
+
+        onPeerJoin: (_peerId: PeerId) => {
+          setPeerCount(getPeerCount())
+          autoConfirmDeadDrops()
+          clearQueuedStatus()
+        },
+
+        onPeerLeave: (_peerId: PeerId) => {
+          setPeerCount(getPeerCount())
+          setPresenceCount(getRawPeerCount())
+          extendBurnTimers(Date.now() + 6 * 60 * 60 * 1_000)
+        },
+
+        onPresenceJoin: (_peerId: PeerId) => {
+          setPresenceCount(getRawPeerCount())   // raw presence - immediate
+        },
+
+        onPresenceLeave: (_peerId: PeerId) => {
+          setPresenceCount(getRawPeerCount())
+        },
+
+        onTerminate: (terminatedAlias: Alias) => {
+          removeByAlias(terminatedAlias)
+        },
+
+        onRoomFull: () => setRoomFull(true),
+      }
+
+      // ── Duress path ───────────────────────────────────────────────────────
+      if (isDuress) {
+        // 1. Publish poison event to the REAL drop (5 s timeout, best-effort).
+        //    Warns the recipient that the sender entered under duress.
+        await Promise.race([
+          publishPoisonEvent(dropId, roomKey),
+          new Promise<void>(r => setTimeout(r, 5_000)),
+        ])
+
+        // 2. Zero real key material so it never reaches the decoy session.
+        roomKey.fill(0)
+
+        // 3. Derive decoy keys from the FULL @password (different key space).
+        const [decoyRoomId, decoyRoomKey, decoyDropId] = await Promise.all([
+          deriveRoomId(password),
+          deriveRoomKey(password),
+          deriveDropId(password),
+        ])
+
+        const decoyIdentity = await generateIdentity()
+        const decoyKeys: SessionKeys = {
+          roomId:   decoyRoomId,
+          dropId:   decoyDropId,
+          roomKey:  decoyRoomKey,
+          identity: decoyIdentity,
+        }
+        sessionRef.current = decoyKeys
+
+        // 4. Generate deterministic decoy message history from room key PRNG.
+        const decoyMsgs = generateDecoyMessages(decoyRoomKey, alias)
+
+        // WebRTC-dependent path - same guard as normal join.
+        if (webRTCAvailable) {
+          await joinChatRoom(decoyKeys, roomCallbacks)
+          startDecoyEngine(
+            (data, targets) => sendRawWire(data, targets),
+            () => getPeerSessions()
+          )
+        }
+
+        setScreen('chat')
+        mountSecurityMeasures()
+
+        // 5. Inject decoy history after short stagger (looks like prior session).
+        setTimeout(() => {
+          if (!sessionRef.current) return
+          addMessages(decoyMsgs)
+        }, 800)
+
+        return
+      }
+
+      // ── Normal join ───────────────────────────────────────────────────────
       const identity = await generateIdentity()
       const keys: SessionKeys = { roomId, dropId, roomKey, identity }
       sessionRef.current = keys
@@ -65,36 +209,7 @@ export function useRoom() {
       // Skipped on browsers without WebRTC (iOS Lockdown Mode, Tor Browser).
       // Dead drop mode works without WebRTC - Nostr relay comms are independent.
       if (webRTCAvailable) {
-        await joinChatRoom(keys, {
-          onMessage: (msg: DisplayMessage) => addMessage(msg),
-
-          onPeerJoin: (_peerId: PeerId) => {
-            setPeerCount(getPeerCount())
-            autoConfirmDeadDrops()
-            clearQueuedStatus()
-          },
-
-          onPeerLeave: (_peerId: PeerId) => {
-            setPeerCount(getPeerCount())
-            setPresenceCount(getRawPeerCount())
-            extendBurnTimers(Date.now() + 6 * 60 * 60 * 1_000)
-          },
-
-          onPresenceJoin: (_peerId: PeerId) => {
-            setPresenceCount(getRawPeerCount())   // raw presence - immediate
-          },
-
-          onPresenceLeave: (_peerId: PeerId) => {
-            setPresenceCount(getRawPeerCount())
-          },
-
-          onTerminate: (terminatedAlias: Alias) => {
-            removeByAlias(terminatedAlias)
-          },
-
-          onRoomFull: () => setRoomFull(true),
-        })
-
+        await joinChatRoom(keys, roomCallbacks)
         startDecoyEngine(
           (data, targets) => sendRawWire(data, targets),
           () => getPeerSessions()
@@ -116,11 +231,16 @@ export function useRoom() {
         )
 
         if (drops.length > 0) {
+          // Check for duress signal before rendering any drops.
+          const hasPoison = drops.some(d => d.type === 'DURESS')
+          if (hasPoison) setDuressDetected(true)
+
           const seen = new Set(
             messagesRef.current.map(m => `${m.alias}:${m.timestamp}:${m.body}`)
           )
 
           const dropMessages: DisplayMessage[] = drops
+            .filter(d => d.type !== 'DURESS')
             .filter(d => !seen.has(`${d.alias}:${d.timestamp}:${d.body}`))
             .map(d => ({
               id:         crypto.randomUUID(),
@@ -149,7 +269,7 @@ export function useRoom() {
     } finally {
       setIsJoining(false)
     }
-  }, [addMessage, addMessages, autoConfirmDeadDrops, clearQueuedStatus, extendBurnTimers, removeByAlias])
+  }, [addMessage, addMessages, autoConfirmDeadDrops, clearQueuedStatus, extendBurnTimers, removeByAlias, alias])
 
   // ── Send ─────────────────────────────────────────────────────────────────
 
@@ -223,6 +343,7 @@ export function useRoom() {
     setPresenceCount(0)
     setRoomFull(false)
     setClipboardEnabled(false)
+    setDuressDetected(false)
     enableCopyPrevention()
     sessionRef.current = null
     unmountSecurityMeasures()
@@ -251,6 +372,7 @@ export function useRoom() {
     setPresenceCount(0)
     setRoomFull(false)
     setClipboardEnabled(false)
+    setDuressDetected(false)
     enableCopyPrevention()
     sessionRef.current = null
     unmountSecurityMeasures()
@@ -271,6 +393,7 @@ export function useRoom() {
     setPresenceCount(0)
     setRoomFull(false)
     setClipboardEnabled(false)
+    setDuressDetected(false)
     sessionRef.current = null
     // rotateAlias() is intentionally omitted here. document.open() in usePanic
     // destroys the React tree before any state update can flush. Alias
@@ -337,5 +460,6 @@ export function useRoom() {
     roomFull,
     clipboardEnabled,
     toggleClipboard,
+    duressDetected,
   }
 }

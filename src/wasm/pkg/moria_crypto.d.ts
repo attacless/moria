@@ -11,7 +11,7 @@
  * - Returns raw plaintext bytes (caller decodes UTF-8 JSON → WireMessage)
  *
  * Returns Err on authentication failure or malformed input (do not throw
- * across the boundary — caller must handle the JS exception).
+ * across the boundary - caller must handle the JS exception).
  */
 export function decrypt(wire: Uint8Array, key: Uint8Array): Uint8Array;
 
@@ -34,7 +34,7 @@ export function derive_drop_id(secret: string): Uint8Array;
  *        length = 32
  *   3. Zero the raw shared secret immediately (SharedSecret zeroizes on drop)
  *
- * Returns 32-byte session key — used as ChaCha20-Poly1305 key for this peer.
+ * Returns 32-byte session key - used as ChaCha20-Poly1305 key for this peer.
  */
 export function derive_peer_session_key(my_private_key: Uint8Array, their_public_key: Uint8Array): Uint8Array;
 

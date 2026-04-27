@@ -19,7 +19,7 @@ export interface PeerSession {
   sessionKey: Uint8Array             // ECDH-derived symmetric key for this peer
 }
 
-export type MessageType = 'TEXT' | 'DECOY' | 'SYSTEM' | 'PUBKEY_HANDSHAKE' | 'TERMINATE'
+export type MessageType = 'TEXT' | 'DECOY' | 'SYSTEM' | 'PUBKEY_HANDSHAKE' | 'TERMINATE' | 'DURESS'
 
 export interface WireMessage {
   type:      MessageType

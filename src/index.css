@@ -96,7 +96,7 @@
   --strength-strong:  rgba(240, 248, 255, 1.0);
 
   --font-hero:  'Ronzino', Georgia, serif;
-  --font-body:  'Inter', -apple-system, system-ui, sans-serif;
+  --font-body:  'Inter', - apple-system, system-ui, sans-serif;
   --font-mono:  'Ronzino', Georgia, serif;
 
   --ease-out:     cubic-bezier(0.4, 0, 0.2, 1);
@@ -509,6 +509,71 @@ input, textarea { font-family: var(--font-body); }
   color: var(--red);
 }
 
+/* ── Duress banner ── */
+@keyframes duressPulse {
+  0%, 100% { opacity: 1;   }
+  50%       { opacity: 0.5; }
+}
+
+.duress-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.95);
+  flex-shrink: 0;
+}
+.duress-banner-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+}
+.duress-banner-title {
+  font-family: var(--font-hero);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #e60000;
+  animation: duressPulse 3s ease-in-out infinite;
+}
+.duress-banner-body {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: rgba(240, 248, 255, 0.85);
+}
+.duress-banner-terminate {
+  background: none;
+  border: 1px solid var(--red-border);
+  border-radius: var(--radius);
+  color: rgba(220, 38, 38, 0.6);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.duress-banner-terminate:hover {
+  border-color: var(--red);
+  color: #fff;
+  background: var(--red);
+}
+.duress-banner-terminate:disabled {
+  cursor: wait;
+  background: var(--red);
+  color: #fff;
+  border-color: var(--red);
+  animation: terminatePulse 0.4s ease infinite;
+}
+
 /* ── Header ── */
 .chat-header {
   display: flex;
@@ -721,7 +786,7 @@ input, textarea { font-family: var(--font-body); }
   gap: 8px;
 }
 
-/* Burn timer — absolute overlay, top-right of bubble */
+/* Burn timer - absolute overlay, top-right of bubble */
 .burn-timer {
   position: absolute;
   top: -8px;
@@ -739,7 +804,7 @@ input, textarea { font-family: var(--font-body); }
 .burn-timer.warning  { color: var(--amber); }
 .burn-timer.critical { color: var(--red); animation: burnPulse 1s ease infinite; }
 
-/* Message status text — plain, no border or background */
+/* Message status text - plain, no border or background */
 .msg-status {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -751,7 +816,7 @@ input, textarea { font-family: var(--font-body); }
 .msg-status.failed  { color: rgba(220, 70, 60, 0.8); }
 .msg-status.waiting { color: rgba(240, 248, 255, 0.25); }
 
-/* Mark read button — plain text, no border or background */
+/* Mark read button - plain text, no border or background */
 .mark-read-btn {
   background: none;
   border: none;
@@ -769,10 +834,10 @@ input, textarea { font-family: var(--font-body); }
 .mark-read-btn:hover { background: none; color: rgba(240, 248, 255, 0.6); }
 
 /* ═══════════════════════════════════
-   DEAD DROP — COLLAPSED / REVEALED
+   DEAD DROP - COLLAPSED / REVEALED
    ═══════════════════════════════════ */
 
-/* Collapsed state — unrevealed dead drop */
+/* Collapsed state - unrevealed dead drop */
 .dead-drop-collapsed {
   background: rgba(240, 248, 255, 0.03);
   border-radius: 16px 16px 16px 4px;
@@ -785,7 +850,7 @@ input, textarea { font-family: var(--font-body); }
   background: rgba(240, 248, 255, 0.05);
 }
 
-/* Revealed state — expanded or collapsed after first tap */
+/* Revealed state - expanded or collapsed after first tap */
 .dead-drop-revealed {
   background: rgba(240, 248, 255, 0.03);
   border-radius: 16px 16px 16px 4px;
@@ -843,7 +908,7 @@ input, textarea { font-family: var(--font-body); }
   animation: dropPulse 2s ease-in-out infinite;
 }
 
-/* Dead drop body — plain block, no height constraints */
+/* Dead drop body - plain block, no height constraints */
 .dead-drop-body {
   margin-top: 8px;
 }

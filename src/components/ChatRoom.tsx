@@ -21,6 +21,7 @@ interface ChatRoomProps {
   roomFull?:            boolean
   clipboardEnabled:     boolean
   onToggleClipboard:    () => void
+  duressDetected?:      boolean
 }
 
 export function ChatRoom({
@@ -40,6 +41,7 @@ export function ChatRoom({
   roomFull,
   clipboardEnabled,
   onToggleClipboard,
+  duressDetected,
 }: ChatRoomProps) {
   const [terminating, setTerminating] = useState(false)
   const [clipboardFlash, setClipboardFlash] = useState(false)
@@ -126,6 +128,23 @@ export function ChatRoom({
           </button>
         </div>
       </div>
+
+      {/* Duress banner - persists for entire session once a poison event is detected */}
+      {duressDetected && (
+        <div className="duress-banner">
+          <div className="duress-banner-text">
+            <span className="duress-banner-title">DURESS SIGNAL</span>
+            <span className="duress-banner-body">The other party may be under coercion. Read any remaining messages, then terminate this room.</span>
+          </div>
+          <button
+            className="duress-banner-terminate"
+            onClick={handleTerminate}
+            disabled={terminating}
+          >
+            {terminating ? 'NUKING...' : 'TERMINATE'}
+          </button>
+        </div>
+      )}
 
       {/* Room full banner */}
       {roomFull && (
