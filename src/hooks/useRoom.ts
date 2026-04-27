@@ -153,7 +153,7 @@ export function useRoom() {
 
   // ── Send ─────────────────────────────────────────────────────────────────
 
-  const send = useCallback(async (body: string) => {
+  const send = useCallback(async (body: string, ttlSeconds: number = 86_400) => {
     const now = Date.now()
     if (now - lastSentRef.current < 1_000) {
       setRateLimited(true)
@@ -184,7 +184,7 @@ export function useRoom() {
       queuedStatus: 'sending',
     })
 
-    const result: PublishResult = await publishDeadDrop(body, alias, keys.dropId, keys.roomKey)
+    const result: PublishResult = await publishDeadDrop(body, alias, keys.dropId, keys.roomKey, ttlSeconds)
 
     if (!result.success) {
       updateMessageStatus(optimisticId, { queuedStatus: 'failed' })

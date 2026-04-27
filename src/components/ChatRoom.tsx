@@ -11,7 +11,7 @@ interface ChatRoomProps {
   presenceCount:        number
   messages:             DisplayMessage[]
   burnSecondsRemaining: (msg: DisplayMessage) => number | null
-  onSend:               (body: string) => void
+  onSend:               (body: string, ttlSeconds: number) => void
   onLeave:              () => void
   onTerminate:          () => Promise<void>
   onConfirmDeadDrop:    (id: string) => void

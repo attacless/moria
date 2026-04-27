@@ -873,6 +873,41 @@ input, textarea { font-family: var(--font-body); }
   flex-shrink: 0;
 }
 
+.ttl-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 16px 3px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ttl-prefix {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(240, 248, 255, 0.1);
+  margin-right: 2px;
+  user-select: none;
+}
+
+.ttl-opt {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(240, 248, 255, 0.15);
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  transition: color 0.15s;
+  border-radius: 2px;
+}
+
+.ttl-opt:hover  { color: rgba(240, 248, 255, 0.35); }
+.ttl-opt.active { color: rgba(240, 248, 255, 0.6); }
+
 .input-error-banner {
   display: none;
   padding: 6px 16px;

@@ -1,7 +1,18 @@
 import { useState, useCallback, useEffect, type KeyboardEvent, type ClipboardEvent, type DragEvent } from 'react'
 
+const TTL_OPTIONS = [
+  { label: '2h',  seconds: 2  * 60 * 60 },
+  { label: '4h',  seconds: 4  * 60 * 60 },
+  { label: '6h',  seconds: 6  * 60 * 60 },
+  { label: '8h',  seconds: 8  * 60 * 60 },
+  { label: '12h', seconds: 12 * 60 * 60 },
+  { label: '24h', seconds: 24 * 60 * 60 },
+]
+
+const DEFAULT_TTL = TTL_OPTIONS[TTL_OPTIONS.length - 1].seconds  // 24h
+
 interface InputBarProps {
-  onSend:        (body: string) => void
+  onSend:        (body: string, ttlSeconds: number) => void
   disabled:      boolean
   placeholder?:  string
   dropError?:    string | null | undefined
@@ -11,9 +22,10 @@ interface InputBarProps {
 }
 
 export function InputBar({ onSend, disabled, placeholder, dropError, onClearError, rateLimited, hasPeers }: InputBarProps) {
-  const [value, setValue]           = useState('')
+  const [value, setValue]               = useState('')
   const [mediaBlocked, setMediaBlocked] = useState(false)
-  const [dragging, setDragging]     = useState(false)
+  const [dragging, setDragging]         = useState(false)
+  const [ttlSecs, setTtlSecs]           = useState(DEFAULT_TTL)
 
   useEffect(() => {
     if (!dropError) return
@@ -48,9 +60,9 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
   const handleSend = useCallback(() => {
     const trimmed = value.trim()
     if (!trimmed || disabled) return
-    onSend(trimmed)
+    onSend(trimmed, ttlSecs)
     setValue('')
-  }, [value, disabled, onSend])
+  }, [value, disabled, onSend, ttlSecs])
 
   const handleKey = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -60,6 +72,7 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
   }, [handleSend])
 
   const hasContent = value.trim().length > 0
+  const showTTL    = !hasPeers
 
   return (
     <div
@@ -79,6 +92,23 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
           {dropError}
         </div>
       )}
+
+      {showTTL && (
+        <div className="ttl-selector">
+          <span className="ttl-prefix">expires</span>
+          {TTL_OPTIONS.map(opt => (
+            <button
+              key={opt.seconds}
+              className={`ttl-opt${ttlSecs === opt.seconds ? ' active' : ''}`}
+              onClick={() => setTtlSecs(opt.seconds)}
+              type="button"
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className={`input-bar${dragging ? ' dragging' : ''}`}>
         <input
           type="text"

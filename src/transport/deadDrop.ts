@@ -70,15 +70,16 @@ export interface PublishResult {
 }
 
 export async function publishDeadDrop(
-  body:    string,
-  alias:   Alias,
-  dropId:  string,
-  roomKey: Uint8Array
+  body:       string,
+  alias:      Alias,
+  dropId:     string,
+  roomKey:    Uint8Array,
+  ttlSeconds: number = DROP_TTL_S
 ): Promise<PublishResult> {
   // Privacy envelopes applied to dead drop publishing:
   // 1. created_at jittered backward 0-120s (breaks relay-level timestamp correlation)
   // 2. NIP-40 expiration anchored to real time, not jittered time
-  // 3. Random 0-30s publish delay (breaks network-level timing correlation)
+  // 3. Random 0-10s publish delay (breaks network-level timing correlation)
   // 4. Payload padded to 8,192 bytes (inherited from encrypt function)
 
   const nowMs = Date.now()
@@ -107,7 +108,7 @@ export async function publishDeadDrop(
   const jitteredTimestamp = now - jitter
 
   // Anchor expiration to real time so blobs don't expire early due to jitter.
-  const expiration = now + DROP_TTL_S
+  const expiration = now + ttlSeconds
 
   const event = finalizeEvent(
     {
