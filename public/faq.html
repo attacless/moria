@@ -551,6 +551,24 @@ details summary:hover .chevron  { color: var(--text-secondary); }
 
     <details>
       <summary>
+        <span class="question">Can I control how long dead drops survive?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
+      <div class="answer">
+        <p>When sending in dead drop mode, a TTL selector appears above the
+        message input. Options are <span class="hl">2h, 4h, 6h, 8h, 12h,</span>
+        and <span class="hl">24h</span>. The selected duration determines how
+        long the encrypted message persists on the relay network before
+        automatic expiration.</p>
+        <p>Shorter TTLs reduce the window during which a message can be
+        intercepted or retrieved under coercion. The default is 24h. Once
+        a dead drop is retrieved by the recipient, the TTL is replaced by
+        the standard burn timer.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>
         <span class="question">Can queued messages be deleted before they expire?</span>
         <span class="chevron">&#x25BE;</span>
       </summary>
@@ -662,6 +680,29 @@ details summary:hover .chevron  { color: var(--text-secondary); }
         and returns you to the entry screen.</p>
         <p>Unlike the panic key, TERMINATE is a coordinated wipe
         across all parties and all storage layers.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>
+        <span class="question">What is the duress password?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
+      <div class="answer">
+        <p>If you are compelled to open a room, prefix your secret with
+        <span class="hl">@</span> to trigger a duress entry. Moria will open
+        a decoy room populated with generated innocuous messages. The decoy
+        room looks and functions like a normal room.</p>
+        <p>Meanwhile, a poison event is published to the real room's drop ID,
+        warning the other party that a duress entry was triggered. When they
+        next join with the real secret, they see a persistent warning:
+        <span class="hl-red">DURESS SIGNAL</span> - The other party may be
+        under coercion.</p>
+        <p>The duress entry does not delete existing dead drops from the relay
+        network. Messages expire based on their chosen TTL. The decoy room is
+        keyed from the full @-prefixed secret, producing entirely separate
+        encryption keys. No relationship between the real room and the decoy
+        room is derivable without knowing the original secret.</p>
       </div>
     </details>
 
