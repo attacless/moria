@@ -13,6 +13,7 @@ import {
 import { startDecoyEngine, stopDecoyEngine } from '@transport/decoy'
 import { webRTCAvailable } from '@/capabilities'
 import { publishDeadDrop, fetchDeadDrops, deleteAllDeadDrops, publishPoisonEvent } from '@transport/deadDrop'
+import { resetPeerColors } from '@/utils/peerColors'
 import type { DeadDropReceipt } from '@transport/deadDrop'
 import type { PublishResult } from '@transport/deadDrop'
 import { roundTimestamp } from '@crypto/chacha20'
@@ -343,6 +344,7 @@ export function useRoom() {
     sessionRef.current?.signingKey.fill(0)
     stopDecoyEngine()
     leaveRoom()
+    resetPeerColors()
     rotateAlias()
     clearMessages()
     setPeerCount(0)
@@ -372,6 +374,7 @@ export function useRoom() {
 
     stopDecoyEngine()
     terminateAndLeave(alias)
+    resetPeerColors()
     rotateAlias()
     clearMessages()
     setPeerCount(0)
@@ -394,6 +397,7 @@ export function useRoom() {
     sessionRef.current?.signingKey.fill(0)
     stopDecoyEngine()
     leaveRoom()
+    resetPeerColors()
     clearMessages()
     setPeerCount(0)
     setPresenceCount(0)

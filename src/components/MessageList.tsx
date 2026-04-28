@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { DisplayMessage } from '@/types'
+import { getPeerColor } from '@/utils/peerColors'
 
 interface MessageListProps {
   messages:             DisplayMessage[]
@@ -7,6 +8,7 @@ interface MessageListProps {
   burnSecondsRemaining: (msg: DisplayMessage) => number | null
   onConfirmDeadDrop:    (id: string) => void
   hasPeers:             boolean
+  peerCount:            number
   collapsedDrops:       Set<string>
   onToggleDropCollapse: (id: string) => void
 }
@@ -38,7 +40,7 @@ function getBurnClass(secs: number): string {
   return ''
 }
 
-export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining, onConfirmDeadDrop, hasPeers: _hasPeers, collapsedDrops, onToggleDropCollapse }: MessageListProps) {
+export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining, onConfirmDeadDrop, hasPeers: _hasPeers, peerCount, collapsedDrops, onToggleDropCollapse }: MessageListProps) {
   const bottomRef    = useRef<HTMLDivElement>(null)
   const prevCountRef = useRef(messages.length)
 
@@ -85,6 +87,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
 
         if (isReceivedDeadDrop && needsConfirm) {
           // Collapsed dead drop envelope - not yet confirmed
+          const dropTimeColor = peerCount >= 2 && peerCount <= 6 ? getPeerColor(msg.alias) : undefined
           return (
             <div
               key={msg.id}
@@ -92,7 +95,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
               onClick={() => handleReveal(msg.id, true)}
             >
               <div className="dead-drop-header">
-                <span className="msg-time">{formatTime(msg.timestamp)}</span>
+                <span className="msg-time" style={dropTimeColor ? { color: dropTimeColor } : undefined}>{formatTime(msg.timestamp)}</span>
                 <span className="dead-drop-hint">dead drop · tap to reveal</span>
                 <span className="dead-drop-chevron pulse">▶</span>
               </div>
@@ -109,6 +112,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
           const transition = burn !== null && burn <= 30 ? 'opacity 1s linear' : 'none'
 
           const hintText = isOpen ? 'tap to collapse' : 'tap to expand'
+          const revealedTimeColor = peerCount >= 2 && peerCount <= 6 ? getPeerColor(msg.alias) : undefined
 
           return (
             <div
@@ -118,7 +122,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
               onClick={() => handleReveal(msg.id, false)}
             >
               <div className="dead-drop-header">
-                <span className="msg-time">{formatTime(msg.timestamp)}</span>
+                <span className="msg-time" style={revealedTimeColor ? { color: revealedTimeColor } : undefined}>{formatTime(msg.timestamp)}</span>
                 {burn !== null ? (
                   <>
                     <span className={`dead-drop-burn ${getBurnClass(burn)}`}>
@@ -152,7 +156,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
           >
             {/* Meta row: timestamp (left) + burn timer (right) - no alias */}
             <div className="msg-meta">
-              <span className="msg-time">{formatTime(msg.timestamp)}</span>
+              <span className="msg-time" style={(!isMe && peerCount >= 2 && peerCount <= 6) ? { color: getPeerColor(msg.alias) } : undefined}>{formatTime(msg.timestamp)}</span>
               {burn !== null && !(isMe && msg.queuedStatus) && (
                 <span className={`burn-timer ${getBurnClass(burn)}`}>
                   {formatBurn(burn)}

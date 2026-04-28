@@ -99,6 +99,13 @@
   --font-body: 'Inter', -apple-system, system-ui, sans-serif;
   --font-mono:  'Ronzino', Georgia, serif;
 
+  --peer-color-1: #15be53;
+  --peer-color-2: #ea2261;
+  --peer-color-3: #3daeff;
+  --peer-color-4: #8B5CF6;
+  --peer-color-5: #fb565b;
+  --peer-color-6: #e6eb52;
+
   --ease-out:     cubic-bezier(0.4, 0, 0.2, 1);
   --ease-in-out:  cubic-bezier(0.4, 0, 0.6, 1);
   --radius:       4px;

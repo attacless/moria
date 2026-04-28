@@ -160,6 +160,7 @@ export function ChatRoom({
         burnSecondsRemaining={burnSecondsRemaining}
         onConfirmDeadDrop={onConfirmDeadDrop}
         hasPeers={peerCount > 0}
+        peerCount={peerCount}
         collapsedDrops={collapsedDrops}
         onToggleDropCollapse={toggleDropCollapse}
       />
