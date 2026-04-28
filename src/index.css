@@ -450,6 +450,9 @@ input, textarea { font-family: var(--font-body); }
   z-index: 110;
   opacity: 0;
   animation: fadeIn 0.6s var(--ease-out) 2.6s forwards;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .relay-status.exiting {
   opacity: 0;
@@ -475,6 +478,7 @@ input, textarea { font-family: var(--font-body); }
   opacity: 0;
   animation: fadeIn 0.6s var(--ease-out) 2.6s forwards;
   transition: color 0.3s ease;
+  padding: 10px 0;
 }
 .faq-hint:hover { color: rgba(255, 255, 255, 0.6); }
 .faq-hint.exiting {
@@ -865,6 +869,9 @@ input, textarea { font-family: var(--font-body); }
   flex-shrink: 0;
   transition: background 0.2s ease-out, padding 0.2s ease-out;
   box-shadow: 0 2px 8px rgba(255, 255, 255, 0.03), 0 0 1px rgba(255, 255, 255, 0.06);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 .dead-drop-collapsed:hover {
   background: rgba(255, 255, 255, 0.05);
@@ -989,6 +996,7 @@ input, textarea { font-family: var(--font-body); }
   color: rgba(255, 255, 255, 0.35);
   margin-right: 2px;
   user-select: none;
+  padding: 6px 0;
 }
 
 .ttl-opt {
@@ -999,7 +1007,7 @@ input, textarea { font-family: var(--font-body); }
   color: rgba(255, 255, 255, 0.3);
   background: none;
   border: none;
-  padding: 2px 4px;
+  padding: 6px 8px;
   cursor: pointer;
   transition: color 0.15s;
   border-radius: 2px;
@@ -1189,7 +1197,7 @@ input, textarea { font-family: var(--font-body); }
 }
 
 .warn-btn {
-  padding: 10px 20px;
+  padding: 12px 20px;
   border-radius: var(--radius);
   font-family: var(--font-hero);
   font-weight: 500;
@@ -1390,15 +1398,16 @@ input, textarea { font-family: var(--font-body); }
    ═══════════════════════════════════ */
 @media (max-width: 640px) {
   .wordmark     { font-size: 1.8rem; letter-spacing: 0.32em; text-indent: 0.32em; }
-  .subtitle     { font-size: 0.48rem; margin-bottom: 40px; letter-spacing: 0.16em; white-space: normal; text-align: center; }
+  .subtitle     { font-size: 0.6rem; margin-bottom: 40px; letter-spacing: 0.16em; white-space: normal; text-align: center; }
   .star-wrap     { width: 120px; margin-bottom: 22px; }
   .entry-screen { padding: 20px 20px 40px; }
   .entry-form   { max-width: 300px; }
   .password-input { padding: 12px 44px 12px 14px; font-size: 16px; } /* prevent iOS Safari auto-zoom */
 
   .chat-header  { padding: 10px 14px; }
+  .header-left  { gap: 8px; }
   .header-actions { gap: 3px; }
-  .action-btn   { padding: 4px 7px; font-size: 0.52rem; }
+  .action-btn   { padding: 8px 12px; font-size: 0.6rem; }
 
   .messages-area { padding: 12px 14px; }
   .message      { max-width: 85%; padding: 8px 12px; }
@@ -1406,9 +1415,11 @@ input, textarea { font-family: var(--font-body); }
 
   .input-bar    { padding: 8px 12px; gap: 6px; }
   .msg-input    { padding: 9px 12px; font-size: 16px; } /* prevent iOS Safari auto-zoom */
-  .send-btn     { padding: 8px 12px; font-size: 0.58rem; min-width: 60px; }
+  .send-btn     { padding: 10px 14px; font-size: 0.65rem; min-width: 60px; }
 
   .chat-footer  { padding: 6px 14px; flex-direction: column; align-items: flex-start; gap: 1px; }
+  .panic-hint, .session-hint { font-size: 0.6rem; }
+
   .stego-body   { padding: 24px 20px; }
   .stego-input-area { padding: 0 20px 24px; }
 }
