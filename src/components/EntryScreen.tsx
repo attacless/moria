@@ -153,7 +153,7 @@ export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
     <a href="/faq" className={`faq-hint${isJoining ? ' exiting' : ''}`}>how it works</a>
 
     {!wasmAvailable && webRTCAvailable && (
-      <div className={`relay-status${isJoining ? ' exiting' : ''}`} style={{ fontSize: '10px', color: 'rgba(240,248,255,0.15)', border: 'none' }}>
+      <div className={`relay-status${isJoining ? ' exiting' : ''}`} style={{ fontSize: '10px', color: 'rgba(255,255,255,0.15)', border: 'none' }}>
         using browser crypto (wasm unavailable)
       </div>
     )}
@@ -177,7 +177,7 @@ export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
             You can still use Moria in dead drop mode. Messages are encrypted and queued on the relay network for your recipient to retrieve later.
           </div>
           {!wasmAvailable && (
-            <div className="warn-body" style={{ marginTop: '-12px', fontSize: '10px', color: 'rgba(240,248,255,0.15)' }}>
+            <div className="warn-body" style={{ marginTop: '-12px', fontSize: '10px', color: 'rgba(255,255,255,0.15)' }}>
               using browser crypto (wasm unavailable)
             </div>
           )}
