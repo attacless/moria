@@ -191,7 +191,7 @@ input, textarea { font-family: var(--font-body); }
   font-size: 2.4rem;
   letter-spacing: 0.38em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.9);
+  color: rgba(255,255,255,1);
   margin-bottom: 6px;
   opacity: 0;
   animation: fadeUp 0.8s var(--ease-out) 1.8s forwards;
@@ -203,7 +203,7 @@ input, textarea { font-family: var(--font-body); }
   font-weight: 300;
   font-size: 0.7rem;
   letter-spacing: 0.22em;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.5);
   text-transform: lowercase;
   margin-bottom: 52px;
   white-space: nowrap;
@@ -394,8 +394,8 @@ input, textarea { font-family: var(--font-body); }
 
 .enter-btn.enabled:hover {
   background: rgba(255,255,255,0.04);
-  border-color: rgba(255,255,255,0.25);
-  color: rgba(255,255,255,0.9);
+  border-color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,1);
   box-shadow: 0 0 24px rgba(255,255,255,0.06);
 }
 
