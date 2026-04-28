@@ -108,7 +108,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
           const opacity    = burn === null ? 1 : burn > 30 ? 1 : Math.max(0.05, burn / 30)
           const transition = burn !== null && burn <= 30 ? 'opacity 1s linear' : 'none'
 
-          const hintText = isOpen ? 'revealed · tap to collapse' : 'revealed · tap to expand'
+          const hintText = isOpen ? 'tap to collapse' : 'tap to expand'
 
           return (
             <div
@@ -119,16 +119,20 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
             >
               <div className="dead-drop-header">
                 <span className="msg-time">{formatTime(msg.timestamp)}</span>
-                <span className="dead-drop-hint">{hintText}</span>
+                {burn !== null ? (
+                  <>
+                    <span className={`dead-drop-burn ${getBurnClass(burn)}`}>
+                      {formatBurn(burn)}
+                    </span>
+                    <span className="dead-drop-hint">{hintText}</span>
+                  </>
+                ) : (
+                  <span className="dead-drop-hint">{hintText}</span>
+                )}
                 <span className={`dead-drop-chevron${isOpen ? ' rotated' : ''}`}>▶</span>
               </div>
               {isOpen && (
                 <div className="dead-drop-body">
-                  {burn !== null && (
-                    <span className={`burn-timer inline-burn ${getBurnClass(burn)}`}>
-                      {formatBurn(burn)}
-                    </span>
-                  )}
                   <div className="msg-body">{msg.body}</div>
                 </div>
               )}

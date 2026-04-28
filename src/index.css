@@ -757,7 +757,7 @@ input, textarea { font-family: var(--font-body); }
   background: rgba(255, 255, 255, 0.07);
   border: none;
   border-radius: 16px 16px 4px 16px;
-  box-shadow: none;
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.04), 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .message.received {
@@ -765,7 +765,7 @@ input, textarea { font-family: var(--font-body); }
   background: rgba(255, 255, 255, 0.06);
   border: none;
   border-radius: 16px 16px 16px 4px;
-  box-shadow: none;
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.04), 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .msg-meta {
@@ -786,7 +786,7 @@ input, textarea { font-family: var(--font-body); }
   font-size: 0.835rem;
   line-height: 1.55;
   color: var(--text-primary);
-  font-weight: 300;
+  font-weight: 400;
   word-break: break-word;
 }
 
@@ -857,6 +857,7 @@ input, textarea { font-family: var(--font-body); }
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.2s ease-out, padding 0.2s ease-out;
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.03), 0 0 1px rgba(255, 255, 255, 0.06);
 }
 .dead-drop-collapsed:hover {
   background: rgba(255, 255, 255, 0.05);
@@ -869,10 +870,12 @@ input, textarea { font-family: var(--font-body); }
   padding: 10px 14px;
   flex-shrink: 0;
   transition: background 0.2s ease-out, padding 0.2s ease-out;
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.03), 0 0 1px rgba(255, 255, 255, 0.06);
 }
 .dead-drop-revealed.dead-drop-open {
   background: rgba(255, 255, 255, 0.09);
   padding: 14px 14px 10px;
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.04), 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 /* Header row shared by collapsed and revealed */
@@ -928,12 +931,22 @@ input, textarea { font-family: var(--font-body); }
   margin-top: 8px;
 }
 
-/* Inline burn timer for dead drop (no absolute positioning) */
-.burn-timer.inline-burn {
-  position: static;
-  display: block;
-  margin-bottom: 4px;
+/* Burn timer in the revealed dead drop header row (inline, not absolute) */
+.dead-drop-burn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.35);
+  white-space: nowrap;
+  line-height: 1;
+  transition: color 0.3s;
+  font-variant-numeric: tabular-nums;
+  min-width: 3.5em;
+  display: inline-block;
+  text-align: left;
 }
+.dead-drop-burn.warning  { color: var(--amber); }
+.dead-drop-burn.critical { color: var(--red); animation: burnPulse 1s ease infinite; }
 
 .system-msg {
   text-align: center;
