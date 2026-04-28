@@ -4,3 +4,5 @@
 export const webRTCAvailable: boolean =
   typeof RTCPeerConnection !== 'undefined' &&
   typeof RTCSessionDescription !== 'undefined'
+
+export const wasmAvailable: boolean = typeof WebAssembly !== 'undefined'

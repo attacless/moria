@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, type FormEvent } from 'react'
 import { StarSvg } from './StarSvg'
-import { webRTCAvailable } from '@/capabilities'
+import { webRTCAvailable, wasmAvailable } from '@/capabilities'
 
 interface EntryScreenProps {
   onJoin:    (password: string) => Promise<void>
@@ -86,7 +86,7 @@ export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
 
   return (
     <>
-    <div className={`entry-screen${isJoining ? ' exiting' : ''}`}>
+    <div className="entry-screen" style={isJoining ? { pointerEvents: 'none' } : undefined}>
       <div className="gate-wrap">
 
         {/* Star */}
@@ -152,6 +152,12 @@ export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
     {/* Relay status - fixed at bottom, outside centered container */}
     <a href="/faq" className={`faq-hint${isJoining ? ' exiting' : ''}`}>how it works</a>
 
+    {!wasmAvailable && webRTCAvailable && (
+      <div className={`relay-status${isJoining ? ' exiting' : ''}`} style={{ fontSize: '10px', color: 'rgba(240,248,255,0.15)', border: 'none' }}>
+        using browser crypto (wasm unavailable)
+      </div>
+    )}
+
     <div className={`relay-status${isJoining ? ' exiting' : ''}`}>
       <div className={`relay-dot${relayState === 'connecting' ? ' connecting' : relayState === 'offline' ? ' offline' : ''}`} />
       <span>
@@ -170,6 +176,11 @@ export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
           <div className="warn-body" style={{ marginTop: '-12px' }}>
             You can still use Moria in dead drop mode. Messages are encrypted and queued on the relay network for your recipient to retrieve later.
           </div>
+          {!wasmAvailable && (
+            <div className="warn-body" style={{ marginTop: '-12px', fontSize: '10px', color: 'rgba(240,248,255,0.15)' }}>
+              using browser crypto (wasm unavailable)
+            </div>
+          )}
           <div className="warn-actions">
             <button className="warn-btn ghost" onClick={handleCloseTab}>
               close

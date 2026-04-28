@@ -30,6 +30,10 @@ import type { IdentityKeypair } from '@crypto/x25519'
 let initialized = false
 
 export async function initCrypto(): Promise<void> {
+  if (!USE_WASM_CRYPTO) {
+    initialized = true  // mark ready so callers proceed to JS fallback path
+    return
+  }
   if (initialized) return
   await init()
   initialized = true
