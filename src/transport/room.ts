@@ -66,11 +66,21 @@ export async function joinChatRoom(
       // Object spread means our iceServers key replaces the defaults entirely.
       // Verified in @trystero-p2p/core/dist/peer.mjs - Google/Cloudflare STUN
       // (the Trystero defaults) are not contacted when rtcConfig.iceServers is set.
+      //
+      // Servers verified reachable via UDP STUN probe on 2026-04-29:
+      //   stun.nextcloud.com:443     OK (68 bytes)
+      //   stun.1und1.de:3478         OK (88 bytes)
+      //   stun.sip.us:3478           OK (100 bytes)
+      //   stun.hot-chilli.net:3478   OK (104 bytes)
+      //   stun.antisip.com:3478      OK (64 bytes)
+      // Removed (NXDOMAIN): stun.mullvad.net, stunserver.stunprotocol.org
       rtcConfig: {
         iceServers: [
-          { urls: 'stun:stun.mullvad.net' },
           { urls: 'stun:stun.nextcloud.com:443' },
-          { urls: 'stun:stunserver.stunprotocol.org' },
+          { urls: 'stun:stun.1und1.de:3478' },
+          { urls: 'stun:stun.sip.us:3478' },
+          { urls: 'stun:stun.hot-chilli.net:3478' },
+          { urls: 'stun:stun.antisip.com:3478' },
         ],
       },
     },
