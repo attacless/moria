@@ -7,7 +7,6 @@ import type { WireMessage, Alias, MessageType } from '@/types'
 const RELAY_POOL = [
   'wss://nos.lol',
   'wss://relay.primal.net',
-  'wss://nostr.wine',
   'wss://relay.nostrplebs.com',
   'wss://nostr-pub.wellorder.net',
   'wss://relay.nostr.wirednet.jp',

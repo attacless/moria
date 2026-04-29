@@ -56,7 +56,6 @@ export async function joinChatRoom(
       relayUrls: [
         'wss://nos.lol',
         'wss://relay.primal.net',
-        'wss://nostr.wine',
         'wss://relay.nostrplebs.com',
         'wss://nostr-pub.wellorder.net',
         'wss://relay.nostr.wirednet.jp',
