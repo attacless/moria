@@ -92,14 +92,52 @@ export function useRoom() {
   const [duressDetected, setDuressDetected]     = useState(false)
   const lastSentRef                         = useRef<number>(0)
 
-  const sessionRef      = useRef<SessionKeys | null>(null)
+  const sessionRef       = useRef<SessionKeys | null>(null)
   const deadDropReceipts = useRef<DeadDropReceipt[]>([])
+  const pollIntervalRef  = useRef<ReturnType<typeof setInterval> | null>(null)
   const { messages, addMessage, addMessages, clearMessages, burnSecondsRemaining, confirmDeadDrop, autoConfirmDeadDrops, confirmAllDeadDrops, removeByAlias, extendBurnTimers, updateMessageStatus, clearQueuedStatus } = useMessages()
   const { alias, rotateAlias } = useAlias()
 
   // Stable ref to messages for queued message dedup - reads latest value at setTimeout fire time
   const messagesRef = useRef<DisplayMessage[]>([])
   useEffect(() => { messagesRef.current = messages }, [messages])
+
+  // ── Fetch + dedup dead drops ─────────────────────────────────────────────
+  // Shared by the initial join fetch and the periodic poll.
+  // Deduplicates against the current message list using alias:timestamp:body.
+
+  const fetchAndAddDrops = useCallback(async () => {
+    const keys = sessionRef.current
+    if (!keys) return
+
+    const drops = await fetchDeadDrops(keys.dropId, keys.roomKey)
+    if (drops.length === 0) return
+
+    const hasPoison = drops.some(d => d.type === 'DURESS')
+    if (hasPoison) setDuressDetected(true)
+
+    const seen = new Set(
+      messagesRef.current.map(m => `${m.alias}:${m.timestamp}:${m.body}`)
+    )
+
+    const dropMessages: DisplayMessage[] = drops
+      .filter(d => d.type !== 'DURESS')
+      .filter(d => !seen.has(`${d.alias}:${d.timestamp}:${d.body}`))
+      .map(d => ({
+        id:         crypto.randomUUID(),
+        alias:      d.alias,
+        timestamp:  d.timestamp,
+        body:       d.body,
+        isMine:     false,
+        isDeadDrop: true,
+        confirmed:  false,
+      }))
+
+    if (dropMessages.length > 0) {
+      addMessages(dropMessages)
+      if (getPeerCount() > 0) autoConfirmDeadDrops()
+    }
+  }, [addMessages, autoConfirmDeadDrops])
 
   // ── Join ────────────────────────────────────────────────────────────────
 
@@ -229,46 +267,7 @@ export function useRoom() {
       // Fetch queued dead drops after a short window so the dedup set
       // includes any live messages that arrived via WebRTC during handshake.
       // Dead drop polling is independent of peer connection - it always runs.
-      setTimeout(async () => {
-        if (!sessionRef.current) return  // user may have left already
-
-        const drops = await fetchDeadDrops(
-          sessionRef.current.dropId,
-          sessionRef.current.roomKey
-        )
-
-        if (drops.length > 0) {
-          // Check for duress signal before rendering any drops.
-          const hasPoison = drops.some(d => d.type === 'DURESS')
-          if (hasPoison) setDuressDetected(true)
-
-          const seen = new Set(
-            messagesRef.current.map(m => `${m.alias}:${m.timestamp}:${m.body}`)
-          )
-
-          const dropMessages: DisplayMessage[] = drops
-            .filter(d => d.type !== 'DURESS')
-            .filter(d => !seen.has(`${d.alias}:${d.timestamp}:${d.body}`))
-            .map(d => ({
-              id:         crypto.randomUUID(),
-              alias:      d.alias,
-              timestamp:  d.timestamp,
-              body:       d.body,
-              isMine:     false,
-              isDeadDrop: true,
-              confirmed:  false,
-              // No burnAt yet - starts only when MARK READ pressed or peer joins
-            }))
-
-          if (dropMessages.length > 0) {
-            addMessages(dropMessages)
-            // Peers may have connected during the relay fetch window.
-            // autoConfirmDeadDrops() fired on peer join but before these
-            // messages existed - call it again so burn timers start immediately.
-            if (getPeerCount() > 0) autoConfirmDeadDrops()
-          }
-        }
-      }, 1_500)
+      setTimeout(() => { fetchAndAddDrops() }, 1_500)
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to join room')
@@ -276,7 +275,7 @@ export function useRoom() {
     } finally {
       setIsJoining(false)
     }
-  }, [addMessage, addMessages, autoConfirmDeadDrops, clearQueuedStatus, extendBurnTimers, removeByAlias, alias])
+  }, [addMessage, addMessages, autoConfirmDeadDrops, clearQueuedStatus, extendBurnTimers, removeByAlias, alias, fetchAndAddDrops])
 
   // ── Send ─────────────────────────────────────────────────────────────────
 
@@ -340,6 +339,7 @@ export function useRoom() {
   // ── Leave ────────────────────────────────────────────────────────────────
 
   const leave = useCallback(() => {
+    if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null }
     deadDropReceipts.current = []
     sessionRef.current?.signingKey.fill(0)
     stopDecoyEngine()
@@ -361,6 +361,7 @@ export function useRoom() {
   // ── Terminate ────────────────────────────────────────────────────────────
 
   const terminate = useCallback(async () => {
+    if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null }
     const keys = sessionRef.current
     deadDropReceipts.current = []
 
@@ -393,6 +394,7 @@ export function useRoom() {
   // ── Panic ────────────────────────────────────────────────────────────────
 
   const panic = useCallback(() => {
+    if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null }
     deadDropReceipts.current = []
     sessionRef.current?.signingKey.fill(0)
     stopDecoyEngine()
@@ -422,6 +424,31 @@ export function useRoom() {
       return next
     })
   }, [])
+
+  // ── Dead drop polling ─────────────────────────────────────────────────────
+  // While in chat with no live peers, poll for new dead drops every 30s.
+  // The transport-layer rate limiter (FETCH_RATE_LIMIT_MS = 30000) absorbs any
+  // overlap with the initial join fetch - the first tick after join is silently
+  // skipped if it fires within the rate-limit window.
+
+  useEffect(() => {
+    if (screen !== 'chat' || peerCount > 0) {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+      return
+    }
+
+    pollIntervalRef.current = setInterval(() => { fetchAndAddDrops() }, 30_000)
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+    }
+  }, [screen, peerCount, fetchAndAddDrops])
 
   // ── Inactivity callbacks ──────────────────────────────────────────────────
 
