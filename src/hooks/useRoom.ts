@@ -316,6 +316,11 @@ export function useRoom() {
       queuedStatus: 'sending',
     })
 
+    // Capture the timestamp synchronously before the async publish call.
+    // publishDeadDrop uses roundTimestamp(Date.now()) at its entry point
+    // (before any awaits), so this value is in the same 60s bucket.
+    const publishedTimestamp = roundTimestamp(Date.now())
+
     const result: PublishResult = await publishDeadDrop(body, alias, keys.dropId, keys.roomKey, keys.signingKey, ttlSeconds)
 
     if (!result.success) {
@@ -330,6 +335,9 @@ export function useRoom() {
       setDropError(msg)
       return
     }
+
+    // Prevent the poll from re-displaying this own message as a received drop.
+    seenDropIds.current.add(`${alias}:${publishedTimestamp}:${body}`)
 
     if (result.receipt) {
       updateMessageStatus(optimisticId, {
