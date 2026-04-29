@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { MessageList } from './MessageList'
 import { InputBar }    from './InputBar'
 import { webRTCAvailable } from '@/capabilities'
@@ -45,6 +45,22 @@ export function ChatRoom({
 }: ChatRoomProps) {
   const [terminating, setTerminating] = useState(false)
   const [clipboardFlash, setClipboardFlash] = useState(false)
+
+  // Connection unavailable modal - appears after 20s of continuous waiting
+  const [showWaitModal, setShowWaitModal]           = useState(false)
+  const [waitModalDismissed, setWaitModalDismissed] = useState(false)
+
+  useEffect(() => {
+    // Hide immediately if peer connects or WebRTC is not available (dead drop mode is expected)
+    if (peerCount > 0 || !webRTCAvailable) {
+      setShowWaitModal(false)
+      return
+    }
+    // Never show again once dismissed this session
+    if (waitModalDismissed) return
+    const timer = setTimeout(() => setShowWaitModal(true), 20_000)
+    return () => clearTimeout(timer)
+  }, [peerCount, waitModalDismissed])
 
   // Dead drop collapse state lives here (not MessageList) so it survives any remount
   const [collapsedDrops, setCollapsedDrops] = useState<Set<string>>(new Set())
@@ -181,6 +197,29 @@ export function ChatRoom({
         <span className="panic-hint">panic esc × 3 · decoy shift × 5</span>
         <span className="session-hint">{alias} · session expires on disconnect</span>
       </div>
+
+      {/* Connection unavailable modal - shown after 20s of continuous waiting */}
+      {showWaitModal && (
+        <div className="modal-backdrop">
+          <div className="warn-dialog">
+            <div className="warn-title">connection unavailable</div>
+            <div className="warn-body">
+              Your network may not support direct peer-to-peer connections. You can still communicate using dead drop mode. Leave and rejoin the room to check for new dead drop messages.
+            </div>
+            <div className="warn-actions">
+              <button className="warn-btn ghost" onClick={onLeave}>
+                leave
+              </button>
+              <button
+                className="warn-btn primary"
+                onClick={() => { setWaitModalDismissed(true); setShowWaitModal(false) }}
+              >
+                send dead drop (queue)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )
