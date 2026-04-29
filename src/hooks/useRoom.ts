@@ -95,6 +95,10 @@ export function useRoom() {
   const sessionRef       = useRef<SessionKeys | null>(null)
   const deadDropReceipts = useRef<DeadDropReceipt[]>([])
   const pollIntervalRef  = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Tracks every dead drop ever displayed this session (alias:timestamp:body).
+  // Outlives the burn lifecycle so polls never re-display a burned message.
+  // Cleared on leave/terminate/panic alongside other session state.
+  const seenDropIds      = useRef<Set<string>>(new Set())
   const { messages, addMessage, addMessages, clearMessages, burnSecondsRemaining, confirmDeadDrop, autoConfirmDeadDrops, confirmAllDeadDrops, removeByAlias, extendBurnTimers, updateMessageStatus, clearQueuedStatus } = useMessages()
   const { alias, rotateAlias } = useAlias()
 
@@ -116,27 +120,29 @@ export function useRoom() {
     const hasPoison = drops.some(d => d.type === 'DURESS')
     if (hasPoison) setDuressDetected(true)
 
-    const seen = new Set(
-      messagesRef.current.map(m => `${m.alias}:${m.timestamp}:${m.body}`)
-    )
-
-    const dropMessages: DisplayMessage[] = drops
+    // Filter against the persistent seen set - not the live message list.
+    // Using the live list would re-display burned messages on the next poll.
+    const newDrops = drops
       .filter(d => d.type !== 'DURESS')
-      .filter(d => !seen.has(`${d.alias}:${d.timestamp}:${d.body}`))
-      .map(d => ({
-        id:         crypto.randomUUID(),
-        alias:      d.alias,
-        timestamp:  d.timestamp,
-        body:       d.body,
-        isMine:     false,
-        isDeadDrop: true,
-        confirmed:  false,
-      }))
+      .filter(d => !seenDropIds.current.has(`${d.alias}:${d.timestamp}:${d.body}`))
 
-    if (dropMessages.length > 0) {
-      addMessages(dropMessages)
-      if (getPeerCount() > 0) autoConfirmDeadDrops()
-    }
+    if (newDrops.length === 0) return
+
+    // Mark as seen before adding to prevent double-display on rapid polls.
+    newDrops.forEach(d => seenDropIds.current.add(`${d.alias}:${d.timestamp}:${d.body}`))
+
+    const dropMessages: DisplayMessage[] = newDrops.map(d => ({
+      id:         crypto.randomUUID(),
+      alias:      d.alias,
+      timestamp:  d.timestamp,
+      body:       d.body,
+      isMine:     false,
+      isDeadDrop: true,
+      confirmed:  false,
+    }))
+
+    addMessages(dropMessages)
+    if (getPeerCount() > 0) autoConfirmDeadDrops()
   }, [addMessages, autoConfirmDeadDrops])
 
   // ── Join ────────────────────────────────────────────────────────────────
@@ -340,6 +346,7 @@ export function useRoom() {
 
   const leave = useCallback(() => {
     if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null }
+    seenDropIds.current.clear()
     deadDropReceipts.current = []
     sessionRef.current?.signingKey.fill(0)
     stopDecoyEngine()
@@ -362,6 +369,7 @@ export function useRoom() {
 
   const terminate = useCallback(async () => {
     if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null }
+    seenDropIds.current.clear()
     const keys = sessionRef.current
     deadDropReceipts.current = []
 
@@ -395,6 +403,7 @@ export function useRoom() {
 
   const panic = useCallback(() => {
     if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null }
+    seenDropIds.current.clear()
     deadDropReceipts.current = []
     sessionRef.current?.signingKey.fill(0)
     stopDecoyEngine()
