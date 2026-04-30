@@ -80,6 +80,18 @@ export async function joinChatRoom(
           { urls: 'stun:stun.sip.us:3478' },
           { urls: 'stun:stun.hot-chilli.net:3478' },
           { urls: 'stun:stun.antisip.com:3478' },
+          // Self-hosted TURN relay for cross-network connectivity when direct P2P fails.
+          // The relay sees ciphertext only. Credential grants relay access, not decryption.
+          {
+            urls:       'turn:turn.moria.chat:5349?transport=tcp',
+            username:   'moria',
+            credential: '2OREAcI9Yi0IRfTzCzavz2EUyJaPWl2d',
+          },
+          {
+            urls:       'turns:turn.moria.chat:5349?transport=tcp',
+            username:   'moria',
+            credential: '2OREAcI9Yi0IRfTzCzavz2EUyJaPWl2d',
+          },
         ],
       },
     },
