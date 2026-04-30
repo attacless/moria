@@ -882,6 +882,7 @@ details summary:hover .chevron  { color: var(--text-secondary); }
       </summary>
       <div class="answer">
         <p>When no one else is in the room, messages are encrypted and published as ephemeral blobs to a distributed pool of public Nostr relays. The recipient retrieves and decrypts them later. In this mode:</p>
+        <p>While waiting for a peer to join, Moria polls the relay network every 30 seconds for new dead drop messages. Incoming messages appear automatically without needing to leave and rejoin the room.</p>
         <p><span class="hl">IP exposure: none.</span> Your IP address is never exposed to the other party. Each participant connects independently to Nostr relays at different times.</p>
         <p><span class="hl">Content: fully encrypted.</span> Content is end-to-end encrypted with a shared room key. No relay operator can read messages.</p>
         <p><span class="hl">Metadata exposure: limited.</span> Relay operators can see that an IP connected and stored or retrieved an encrypted blob, but cannot link sender and recipient without traffic analysis across multiple independent relay operators.</p>
