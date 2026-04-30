@@ -915,6 +915,17 @@ details summary:hover .chevron  { color: var(--text-secondary); }
 
     <details>
       <summary>
+        <span class="question">Why does Moria use a relay server?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
+      <div class="answer">
+        <p>For around 10-20% of connections, it is not possible to connect two devices directly. When both peers are behind restrictive NAT (common on mobile carriers and many home routers), a relay server forwards encrypted traffic between them. The relay sees two IP addresses and a stream of identically-sized encrypted packets. It cannot read message content, determine when real messages are sent (chaff traffic is indistinguishable from real traffic), or infer message length (all packets are padded to the same size). The relay is self-hosted by Attacless with logging disabled. If the relay goes offline, live chat falls back to dead drop mode automatically. No messages are lost. The relay is optional infrastructure, not a dependency. Users who need IP-level anonymity from the relay should use dead drop mode.</p>
+        <p>The relay cannot decrypt messages. It holds no key material. Session keys are negotiated directly between peers via X25519 key exchange. The relay transports the already-encrypted data channel. It cannot correlate sessions across time. No connection records are written. No IPs are stored. Each relay allocation is anonymous and ephemeral. It cannot selectively interfere. Dropping, reordering, or modifying packets breaks the authenticated encryption tag. The tampered packet is discarded. The relay is a dumb pipe.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>
         <span class="question">User Responsibility</span>
         <span class="chevron">&#x25BE;</span>
       </summary>
