@@ -539,14 +539,13 @@ details summary:hover .chevron  { color: var(--text-secondary); }
         <span class="chevron">&#x25BE;</span>
       </summary>
       <div class="answer">
-        <p>All queued messages carry a
-        <span class="hl">24-hour expiration tag</span> (NIP-40).
+        <p>All queued messages carry an
+        <span class="hl">expiration tag</span> (NIP-40) based on the TTL
+        selected by the sender (2, 4, 6, 8, 12, or 24 hours).
         Compliant Nostr relays automatically delete them after this
         window. Messages are also removed from your local session
         when you disconnect.</p>
-        <p>When you or your peer manually confirms receipt by clicking
-        <span class="hl">MARK READ</span> or
-        <span class="hl">MARK ALL READ</span>, a 5-minute self-destruct
+        <p>When you tap a dead drop envelope to reveal its content, a 5-minute self-destruct
         timer begins. When both parties are online simultaneously,
         all queued messages auto-confirm the moment the second person
         joins - no manual action required.</p>
