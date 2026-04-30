@@ -404,8 +404,7 @@ details summary:hover .chevron  { color: var(--text-secondary); }
         decentralized Nostr relay network, messages travel
         <span class="hl">directly peer-to-peer</span> over WebRTC - an
         encrypted direct connection between your device and the other
-        person's device. No relay, no operator, no third party sits
-        in the path of your conversation.</p>
+        person's device. No central server sits in the path of your conversation.</p>
       </div>
     </details>
   </div>
@@ -655,6 +654,7 @@ details summary:hover .chevron  { color: var(--text-secondary); }
         bfcache), the wipe re-triggers automatically.</p>
         <p>The panic key is active from the moment the page loads -
         it does not require you to be in a room.</p>
+        <p>This feature is available on desktop browsers only. On mobile, closing the browser tab serves the same purpose as the app stores no persistent state.</p>
         <div class="caveat">
           <div class="caveat-label">Important</div>
           <div class="caveat-text">
@@ -685,6 +685,7 @@ details summary:hover .chevron  { color: var(--text-secondary); }
         and returns you to the entry screen.</p>
         <p>Unlike the panic key, TERMINATE is a coordinated wipe
         across all parties and all storage layers.</p>
+        <p>TERMINATE actively deletes queued messages from the relay network, not just from your screen. A deterministic signing key derived from the shared secret allows any session to sign valid deletion requests for dead drops created by any previous session. When you terminate, the messages are gone from the relays.</p>
       </div>
     </details>
 
@@ -742,6 +743,7 @@ details summary:hover .chevron  { color: var(--text-secondary); }
         <p>This is useful if your screen is visible to others. Press
         <span class="key">Shift</span> five times again to return to
         the normal interface.</p>
+        <p>This feature is available on desktop browsers only. On mobile, closing the browser tab serves the same purpose as the app stores no persistent state.</p>
       </div>
     </details>
 
@@ -757,6 +759,26 @@ details summary:hover .chevron  { color: var(--text-secondary); }
         message storage. The Content Security Policy headers enforce
         this at the browser level. You can verify this in your
         browser's developer tools.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>
+        <span class="question">How does Moria verify its own code?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
+      <div class="answer">
+        <p>Every script and stylesheet loaded by the app carries a SHA-384 integrity hash. When your browser downloads the file, it computes the hash and compares it to the expected value. If a single byte was modified between the server and your device, the browser refuses to execute the file. This protects against CDN tampering or code injection at the network level.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>
+        <span class="question">How do I tell who sent a message in a group room?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
+      <div class="answer">
+        <p>In rooms with 3 to 7 participants, each peer's message timestamps are displayed in a unique color from a fixed palette. In 2-person rooms, no colors are applied since message alignment already distinguishes sender from receiver. In rooms with 8 or more participants, colors are disabled to avoid duplicates. Colors are assigned in the order peers join and are consistent for the duration of the session.</p>
       </div>
     </details>
 
@@ -882,6 +904,7 @@ details summary:hover .chevron  { color: var(--text-secondary); }
       </summary>
       <div class="answer">
         <p>When no one else is in the room, messages are encrypted and published as ephemeral blobs to a distributed pool of public Nostr relays. The recipient retrieves and decrypts them later. In this mode:</p>
+        <p>Dead drop events use a custom Nostr event kind (1337) that is ignored by social Nostr clients like Damus, Primal, and Snort. Encrypted blobs do not appear in public Nostr feeds.</p>
         <p><span class="hl">IP exposure: none.</span> Your IP address is never exposed to the other party. Each participant connects independently to Nostr relays at different times.</p>
         <p><span class="hl">Content: fully encrypted.</span> Content is end-to-end encrypted with a shared room key. No relay operator can read messages.</p>
         <p><span class="hl">Metadata exposure: limited.</span> Relay operators can see that an IP connected and stored or retrieved an encrypted blob, but cannot link sender and recipient without traffic analysis across multiple independent relay operators.</p>
@@ -907,6 +930,7 @@ details summary:hover .chevron  { color: var(--text-secondary); }
         <p><span class="hl">Content protection: strong.</span> Every message is encrypted with ChaCha20-Poly1305 using a per-peer ephemeral session key derived from X25519 ECDH and HKDF-SHA256. The key is unique to each session and destroyed on disconnect.</p>
         <p><span class="hl">Traffic analysis resistance: active.</span> Three countermeasures operate simultaneously on the live channel. First, every message is padded to a fixed 8,192-byte block using a 2-byte length prefix filled with cryptographically random noise. A two-character message produces identical ciphertext size to a maximum-length message. Second, timestamps embedded in encrypted payloads are rounded to 60-second granularity, preventing cross-channel timing correlation. Third, encrypted dummy messages are sent to all connected peers at random intervals between 10 and 60 seconds. These decoy messages are the same size, encrypted with the same session key, and transit the same channel as real messages. The receiving client silently discards them after decryption. An observer monitoring the WebRTC connection cannot determine when real communication is happening versus when the channel is idle.</p>
         <p><span class="hl">Connection drops.</span> If the connection drops mid-session, the browser attempts to reconnect. Messages sent during the gap are lost until the connection reestablishes or the room reverts to dead drop mode.</p>
+        <p><span class="hl">Connection unavailable.</span> If no peer-to-peer connection is established within 30 seconds, Moria displays a prompt offering to leave the room or continue in dead drop mode. This typically indicates that both devices are behind restrictive networks.</p>
       </div>
     </details>
 
