@@ -2,6 +2,10 @@ import { useEffect, useRef } from 'react'
 import type { DisplayMessage } from '@/types'
 import { getPeerColor } from '@/utils/peerColors'
 
+function truncate(text: string, max = 100): string {
+  return text.length > max ? text.slice(0, max) + '...' : text
+}
+
 interface MessageListProps {
   messages:             DisplayMessage[]
   myAlias:              string
@@ -11,6 +15,7 @@ interface MessageListProps {
   peerCount:            number
   collapsedDrops:       Set<string>
   onToggleDropCollapse: (id: string) => void
+  onSelectReply?:       (msg: DisplayMessage) => void
 }
 
 function formatTime(ms: number): string {
@@ -40,7 +45,7 @@ function getBurnClass(secs: number): string {
   return ''
 }
 
-export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining, onConfirmDeadDrop, hasPeers: _hasPeers, peerCount, collapsedDrops, onToggleDropCollapse }: MessageListProps) {
+export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining, onConfirmDeadDrop, hasPeers: _hasPeers, peerCount, collapsedDrops, onToggleDropCollapse, onSelectReply }: MessageListProps) {
   const bottomRef    = useRef<HTMLDivElement>(null)
   const prevCountRef = useRef(messages.length)
 
@@ -144,7 +149,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
           )
         }
 
-        // Live chat message (own or received non-dead-drop) - unchanged
+        // Live chat message (own or received non-dead-drop)
         const opacity    = burn === null ? 1 : burn > 30 ? 1 : Math.max(0.05, burn / 30)
         const transition = burn !== null && burn <= 30 ? 'opacity 1s linear' : 'none'
 
@@ -152,8 +157,16 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
           <div
             key={msg.id}
             className={`message fade-in ${isMe ? 'own' : 'received'}`}
-            style={{ opacity, transition }}
+            style={{ opacity, transition, cursor: onSelectReply ? 'pointer' : undefined }}
+            onClick={() => onSelectReply?.(msg)}
           >
+            {/* Quoted reply */}
+            {msg.replyTo && (
+              <div className="msg-reply-quote">
+                {truncate(msg.replyTo.body)}
+              </div>
+            )}
+
             {/* Meta row: timestamp (left) + burn timer (right) - no alias */}
             <div className="msg-meta">
               <span className="msg-time" style={(!isMe && peerCount >= 2 && peerCount <= 6) ? { color: getPeerColor(msg.alias) } : undefined}>{formatTime(msg.timestamp)}</span>
@@ -169,7 +182,6 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
 
             {/* Footer: status text */}
             <div className="msg-footer">
-              {/* Own message status - failed takes priority, expiry replaces standalone queued badge */}
               {isMe && msg.queuedStatus && (
                 <span className={`msg-status ${msg.queuedStatus}`}>
                   {msg.queuedStatus === 'failed'  && 'failed · try again'}

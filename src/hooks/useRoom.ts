@@ -4,6 +4,7 @@ import {
   joinChatRoom,
   leaveRoom,
   sendChatMessage,
+  sendTypingIndicator,
   terminateAndLeave,
   getPeerCount,
   getRawPeerCount,
@@ -20,7 +21,7 @@ import { roundTimestamp } from '@crypto/chacha20'
 import { mountSecurityMeasures, unmountSecurityMeasures, disableCopyPrevention, enableCopyPrevention } from '@/security'
 import { useMessages } from './useMessages'
 import { useAlias } from './useAlias'
-import type { SessionKeys, DisplayMessage, PeerId, AppScreen, Alias } from '@/types'
+import type { SessionKeys, DisplayMessage, PeerId, AppScreen, Alias, ReplyTo } from '@/types'
 
 // ── Duress helpers ────────────────────────────────────────────────────────────
 
@@ -91,6 +92,10 @@ export function useRoom() {
   const [clipboardEnabled, setClipboardEnabled] = useState(false)
   const [duressDetected, setDuressDetected]     = useState(false)
   const lastSentRef                         = useRef<number>(0)
+  const lastTypingRef                       = useRef<number>(0)
+
+  const [typingAliases, setTypingAliases]   = useState<Alias[]>([])
+  const typingTimers                        = useRef<Map<Alias, ReturnType<typeof setTimeout>>>(new Map())
 
   const sessionRef       = useRef<SessionKeys | null>(null)
   const deadDropReceipts = useRef<DeadDropReceipt[]>([])
@@ -145,6 +150,17 @@ export function useRoom() {
     if (getPeerCount() > 0) autoConfirmDeadDrops()
   }, [addMessages, autoConfirmDeadDrops])
 
+  const handleTypingPeer = useCallback((peerAlias: Alias) => {
+    const existing = typingTimers.current.get(peerAlias)
+    if (existing) clearTimeout(existing)
+    const timer = setTimeout(() => {
+      typingTimers.current.delete(peerAlias)
+      setTypingAliases(prev => prev.filter(a => a !== peerAlias))
+    }, 4_000)
+    typingTimers.current.set(peerAlias, timer)
+    setTypingAliases(prev => prev.includes(peerAlias) ? prev : [...prev, peerAlias])
+  }, [])
+
   // ── Join ────────────────────────────────────────────────────────────────
 
   const join = useCallback(async (password: string) => {
@@ -192,6 +208,7 @@ export function useRoom() {
         },
 
         onRoomFull: () => setRoomFull(true),
+        onTyping:   (peerAlias: Alias) => handleTypingPeer(peerAlias),
       }
 
       // ── Duress path ───────────────────────────────────────────────────────
@@ -285,7 +302,7 @@ export function useRoom() {
 
   // ── Send ─────────────────────────────────────────────────────────────────
 
-  const send = useCallback(async (body: string, ttlSeconds: number = 86_400) => {
+  const send = useCallback(async (body: string, ttlSeconds: number = 86_400, replyTo?: ReplyTo) => {
     const now = Date.now()
     if (now - lastSentRef.current < 1_000) {
       setRateLimited(true)
@@ -294,7 +311,7 @@ export function useRoom() {
     }
     lastSentRef.current = now
 
-    const display = sendChatMessage(body, alias, alias)
+    const display = sendChatMessage(body, alias, alias, replyTo)
     if (display) {
       addMessage(display)
       return
@@ -314,6 +331,7 @@ export function useRoom() {
       isMine:       true,
       isDeadDrop:   true,
       queuedStatus: 'sending',
+      ...(replyTo ? { replyTo } : {}),
     })
 
     // Capture the timestamp synchronously before the async publish call.
@@ -321,7 +339,7 @@ export function useRoom() {
     // (before any awaits), so this value is in the same 60s bucket.
     const publishedTimestamp = roundTimestamp(Date.now())
 
-    const result: PublishResult = await publishDeadDrop(body, alias, keys.dropId, keys.roomKey, keys.signingKey, ttlSeconds)
+    const result: PublishResult = await publishDeadDrop(body, alias, keys.dropId, keys.roomKey, keys.signingKey, ttlSeconds, replyTo)
 
     if (!result.success) {
       updateMessageStatus(optimisticId, { queuedStatus: 'failed' })
@@ -357,6 +375,8 @@ export function useRoom() {
     seenDropIds.current.clear()
     deadDropReceipts.current = []
     sessionRef.current?.signingKey.fill(0)
+    typingTimers.current.forEach(t => clearTimeout(t))
+    typingTimers.current.clear()
     stopDecoyEngine()
     leaveRoom()
     resetPeerColors()
@@ -367,6 +387,7 @@ export function useRoom() {
     setRoomFull(false)
     setClipboardEnabled(false)
     setDuressDetected(false)
+    setTypingAliases([])
     enableCopyPrevention()
     sessionRef.current = null
     unmountSecurityMeasures()
@@ -380,6 +401,8 @@ export function useRoom() {
     seenDropIds.current.clear()
     const keys = sessionRef.current
     deadDropReceipts.current = []
+    typingTimers.current.forEach(t => clearTimeout(t))
+    typingTimers.current.clear()
 
     // Fire NIP-09 deletion for ALL drop events - cross-session capable.
     // Signing key zeroed in finally() regardless of success or failure.
@@ -399,6 +422,7 @@ export function useRoom() {
     setRoomFull(false)
     setClipboardEnabled(false)
     setDuressDetected(false)
+    setTypingAliases([])
     enableCopyPrevention()
     sessionRef.current = null
     unmountSecurityMeasures()
@@ -414,6 +438,8 @@ export function useRoom() {
     seenDropIds.current.clear()
     deadDropReceipts.current = []
     sessionRef.current?.signingKey.fill(0)
+    typingTimers.current.forEach(t => clearTimeout(t))
+    typingTimers.current.clear()
     stopDecoyEngine()
     leaveRoom()
     resetPeerColors()
@@ -423,6 +449,7 @@ export function useRoom() {
     setRoomFull(false)
     setClipboardEnabled(false)
     setDuressDetected(false)
+    setTypingAliases([])
     sessionRef.current = null
     // rotateAlias() is intentionally omitted here. document.open() in usePanic
     // destroys the React tree before any state update can flush. Alias
@@ -432,6 +459,14 @@ export function useRoom() {
   }, [clearMessages])
 
   const clearDropError = useCallback(() => setDropError(null), [])
+
+  const sendTyping = useCallback(() => {
+    if (getPeerCount() === 0) return
+    const now = Date.now()
+    if (now - lastTypingRef.current < 3_000) return
+    lastTypingRef.current = now
+    sendTypingIndicator(alias)
+  }, [alias])
 
   const toggleClipboard = useCallback(() => {
     setClipboardEnabled(prev => {
@@ -515,5 +550,7 @@ export function useRoom() {
     clipboardEnabled,
     toggleClipboard,
     duressDetected,
+    sendTyping,
+    typingAliases,
   }
 }

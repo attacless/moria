@@ -1,8 +1,9 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { MessageList } from './MessageList'
 import { InputBar }    from './InputBar'
 import { webRTCAvailable } from '@/capabilities'
-import type { DisplayMessage } from '@/types'
+import { getPeerColor } from '@/utils/peerColors'
+import type { DisplayMessage, ReplyTo, Alias } from '@/types'
 
 interface ChatRoomProps {
   roomId:               string
@@ -11,7 +12,7 @@ interface ChatRoomProps {
   presenceCount:        number
   messages:             DisplayMessage[]
   burnSecondsRemaining: (msg: DisplayMessage) => number | null
-  onSend:               (body: string, ttlSeconds: number) => void
+  onSend:               (body: string, ttlSeconds: number, replyTo?: ReplyTo) => void
   onLeave:              () => void
   onTerminate:          () => Promise<void>
   onConfirmDeadDrop:    (id: string) => void
@@ -22,6 +23,8 @@ interface ChatRoomProps {
   clipboardEnabled:     boolean
   onToggleClipboard:    () => void
   duressDetected?:      boolean
+  onTyping?:            () => void
+  typingAliases?:       Alias[]
 }
 
 export function ChatRoom({
@@ -42,9 +45,50 @@ export function ChatRoom({
   clipboardEnabled,
   onToggleClipboard,
   duressDetected,
+  onTyping,
+  typingAliases = [],
 }: ChatRoomProps) {
   const [terminating, setTerminating] = useState(false)
   const [clipboardFlash, setClipboardFlash] = useState(false)
+
+  // ── Unread tab badge ────────────────────────────────────────────────────
+  const seenIdsRef = useRef<Set<string>>(new Set())
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    const newMsgs = messages.filter(m => !seenIdsRef.current.has(m.id))
+    newMsgs.forEach(m => seenIdsRef.current.add(m.id))
+    if (!document.hidden) return
+    const countable = newMsgs.filter(m => !m.isMine && m.alias !== 'system')
+    if (countable.length > 0) setUnreadCount(prev => prev + countable.length)
+  }, [messages])
+
+  useEffect(() => {
+    function onVisChange() { if (!document.hidden) setUnreadCount(0) }
+    document.addEventListener('visibilitychange', onVisChange)
+    return () => document.removeEventListener('visibilitychange', onVisChange)
+  }, [])
+
+  useEffect(() => {
+    document.title = unreadCount > 0 ? `(${unreadCount}) Moria` : 'Moria'
+    return () => { document.title = 'Moria' }
+  }, [unreadCount])
+
+  // ── Reply state ─────────────────────────────────────────────────────────
+  const [replyTo, setReplyTo] = useState<ReplyTo | null>(null)
+
+  const handleSelectReply = useCallback((msg: DisplayMessage) => {
+    setReplyTo({ id: msg.id, body: msg.body.slice(0, 100), alias: msg.alias })
+  }, [])
+
+  const handleCancelReply = useCallback(() => setReplyTo(null), [])
+
+  const handleSend = useCallback((body: string, ttlSecs: number) => {
+    onSend(body, ttlSecs, replyTo ?? undefined)
+    setReplyTo(null)
+  }, [onSend, replyTo])
+
+  const handleTyping = useCallback(() => { onTyping?.() }, [onTyping])
 
   // Connection unavailable modal - appears after 20s of continuous waiting
   const [showWaitModal, setShowWaitModal]           = useState(false)
@@ -179,17 +223,35 @@ export function ChatRoom({
         peerCount={peerCount}
         collapsedDrops={collapsedDrops}
         onToggleDropCollapse={toggleDropCollapse}
+        onSelectReply={handleSelectReply}
       />
+
+      {/* Typing indicator */}
+      {typingAliases.length > 0 && (
+        <div
+          className="typing-indicator"
+          style={
+            peerCount >= 2 && peerCount <= 6
+              ? { color: getPeerColor(typingAliases[0]!) }
+              : undefined
+          }
+        >
+          typing...
+        </div>
+      )}
 
       {/* Input */}
       <InputBar
-        onSend={onSend}
+        onSend={handleSend}
         disabled={false}
         placeholder={peerCount === 0 ? 'no peers - queue a message...' : 'type message...'}
         dropError={dropError}
         onClearError={onClearError}
         rateLimited={rateLimited}
         hasPeers={peerCount > 0}
+        replyTo={replyTo}
+        onCancelReply={handleCancelReply}
+        onTyping={handleTyping}
       />
 
       {/* Footer */}
@@ -204,7 +266,7 @@ export function ChatRoom({
           <div className="warn-dialog">
             <div className="warn-title">connection unavailable</div>
             <div className="warn-body">
-              Your network may not support direct peer-to-peer connections. You can still communicate using dead drop mode. Leave and rejoin the room to check for new dead drop messages.
+              Your network may not support direct peer-to-peer connections. You can still communicate using dead drop mode. New messages appear automatically every 30 seconds.
             </div>
             <div className="warn-actions">
               <button className="warn-btn ghost" onClick={onLeave}>

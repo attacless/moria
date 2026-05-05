@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, type KeyboardEvent, type ClipboardEvent, type DragEvent } from 'react'
+import type { ReplyTo } from '@/types'
 
 const TTL_OPTIONS = [
   { label: '2h',  seconds: 2  * 60 * 60 },
@@ -12,16 +13,19 @@ const TTL_OPTIONS = [
 const DEFAULT_TTL = TTL_OPTIONS[TTL_OPTIONS.length - 1].seconds  // 24h
 
 interface InputBarProps {
-  onSend:        (body: string, ttlSeconds: number) => void
-  disabled:      boolean
-  placeholder?:  string
-  dropError?:    string | null | undefined
-  onClearError?: (() => void) | undefined
-  rateLimited?:  boolean | undefined
-  hasPeers?:     boolean | undefined
+  onSend:          (body: string, ttlSeconds: number) => void
+  disabled:        boolean
+  placeholder?:    string
+  dropError?:      string | null | undefined
+  onClearError?:   (() => void) | undefined
+  rateLimited?:    boolean | undefined
+  hasPeers?:       boolean | undefined
+  replyTo?:        ReplyTo | null
+  onCancelReply?:  () => void
+  onTyping?:       () => void
 }
 
-export function InputBar({ onSend, disabled, placeholder, dropError, onClearError, rateLimited, hasPeers }: InputBarProps) {
+export function InputBar({ onSend, disabled, placeholder, dropError, onClearError, rateLimited, hasPeers, replyTo, onCancelReply, onTyping }: InputBarProps) {
   const [value, setValue]               = useState('')
   const [mediaBlocked, setMediaBlocked] = useState(false)
   const [dragging, setDragging]         = useState(false)
@@ -93,6 +97,17 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
         </div>
       )}
 
+      {replyTo && (
+        <div className="reply-bar">
+          <div className="reply-bar-text">
+            {replyTo.body.length >= 100 ? replyTo.body.slice(0, 100) + '...' : replyTo.body}
+          </div>
+          <button className="reply-cancel" onClick={onCancelReply} type="button">
+            {'✕'}
+          </button>
+        </div>
+      )}
+
       {showTTL && (
         <div className="ttl-selector">
           <span className="ttl-prefix">expires</span>
@@ -114,7 +129,7 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
           type="text"
           className="msg-input chat-input"
           value={value}
-          onChange={e => setValue(e.target.value)}
+          onChange={e => { setValue(e.target.value); if (e.target.value.trim()) onTyping?.() }}
           onKeyDown={handleKey}
           disabled={disabled}
           placeholder={placeholder ?? (disabled ? 'waiting for peer...' : 'type message...')}

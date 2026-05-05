@@ -3,7 +3,7 @@ import type { Room, ActionSender } from 'trystero'
 import { syncDerivePeerSessionKey, syncDecrypt, syncEncrypt, destroyIdentity, destroyPeerSession } from '@/wasm'
 import { roundTimestamp } from '@crypto/chacha20'
 import { resetDeadDropRateLimits } from './deadDrop'
-import type { SessionKeys, PeerSession, PeerId, WireMessage, DisplayMessage, Alias } from '@/types'
+import type { SessionKeys, PeerSession, PeerId, WireMessage, DisplayMessage, Alias, ReplyTo } from '@/types'
 
 // Trystero delivers binary action data as ArrayBuffer regardless of the
 // declared TypeScript generic type. Coerce before any crypto processing.
@@ -40,6 +40,7 @@ export interface RoomCallbacks {
   onPresenceLeave: (peerId: PeerId) => void
   onTerminate:     (alias: Alias) => void
   onRoomFull:      () => void
+  onTyping:        (alias: Alias) => void
 }
 
 export async function joinChatRoom(
@@ -177,6 +178,11 @@ export async function joinChatRoom(
       return
     }
 
+    if (msg.type === 'TYPING') {
+      callbacks.onTyping(msg.alias)
+      return
+    }
+
     const display: DisplayMessage = {
       id:        crypto.randomUUID(),
       alias:     msg.alias,
@@ -184,6 +190,7 @@ export async function joinChatRoom(
       body:      msg.body,
       isMine:    false,
       burnAt:    Date.now() + 5 * 60 * 1000,
+      ...(msg.replyTo ? { replyTo: msg.replyTo } : {}),
     }
 
     callbacks.onMessage(display)
@@ -209,7 +216,8 @@ export async function joinChatRoom(
 export function sendChatMessage(
   body:    string,
   alias:   Alias,
-  myAlias: Alias
+  myAlias: Alias,
+  replyTo?: ReplyTo
 ): DisplayMessage | null {
   if (!activeRoom || !sendWire || peers.size === 0) return null
 
@@ -218,6 +226,7 @@ export function sendChatMessage(
     alias,
     timestamp: roundTimestamp(Date.now()),
     body,
+    ...(replyTo ? { replyTo } : {}),
   }
 
   // Encrypt separately for each peer and unicast - never broadcast raw key
@@ -237,7 +246,24 @@ export function sendChatMessage(
     body,
     isMine:    true,
     burnAt:    Date.now() + 5 * 60 * 1000,
+    ...(replyTo ? { replyTo } : {}),
   }
+}
+
+export function sendTypingIndicator(alias: Alias): void {
+  if (!sendWire || peers.size === 0) return
+  const wire: WireMessage = {
+    type:      'TYPING',
+    alias,
+    timestamp: roundTimestamp(Date.now()),
+    body:      '',
+  }
+  peers.forEach((peer, peerId) => {
+    try {
+      const encrypted = syncEncrypt(wire, peer.sessionKey)
+      sendWire!(encrypted, [peerId])
+    } catch (_) {}
+  })
 }
 
 // ── Leave room and zero all key material ─────────────────────────────────────

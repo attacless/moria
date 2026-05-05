@@ -1,7 +1,7 @@
 import { finalizeEvent, SimplePool } from 'nostr-tools'
 import { encryptMessage, decryptMessage } from '@/wasm'
 import { roundTimestamp } from '@crypto/chacha20'
-import type { WireMessage, Alias, MessageType } from '@/types'
+import type { WireMessage, Alias, MessageType, ReplyTo } from '@/types'
 
 // Larger pool - more fallbacks if individual relays are down
 const RELAY_POOL = [
@@ -73,7 +73,8 @@ export async function publishDeadDrop(
   dropId:     string,
   roomKey:    Uint8Array,
   signingKey: Uint8Array,
-  ttlSeconds: number = DROP_TTL_S
+  ttlSeconds: number = DROP_TTL_S,
+  replyTo?:   ReplyTo
 ): Promise<PublishResult> {
   // Privacy envelopes applied to dead drop publishing:
   // 1. created_at jittered backward 0-120s (breaks relay-level timestamp correlation)
@@ -92,6 +93,7 @@ export async function publishDeadDrop(
     alias,
     timestamp: roundTimestamp(Date.now()),
     body,
+    ...(replyTo ? { replyTo } : {}),
   }
 
   const encrypted = await encryptMessage(wire, roomKey)

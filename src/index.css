@@ -779,6 +779,18 @@ input, textarea { font-family: var(--font-body); }
   box-shadow: 0 2px 8px rgba(255, 255, 255, 0.04), 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
+.msg-reply-quote {
+  font-size: 12px;
+  color: rgba(255,255,255,0.4);
+  border-left: 2px solid rgba(255,255,255,0.08);
+  padding-left: 8px;
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-body);
+}
+
 .msg-meta {
   display: flex;
   align-items: center;
@@ -976,10 +988,53 @@ input, textarea { font-family: var(--font-body); }
 /* ═══════════════════════════════════
    INPUT BAR
    ═══════════════════════════════════ */
+.typing-indicator {
+  padding: 2px 20px 4px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.25);
+  font-family: var(--font-body);
+  flex-shrink: 0;
+}
+
 .input-bar-wrap {
   flex-shrink: 0;
   box-shadow: 0 -4px 12px rgba(0,0,0,0.3), 0 -1px 0 rgba(255,255,255,0.02);
 }
+
+.reply-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.04);
+  border-left: 2px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  margin: 6px 16px 0;
+}
+
+.reply-bar-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  font-family: var(--font-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reply-cancel {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.3);
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+.reply-cancel:hover { color: rgba(255,255,255,0.6); }
 
 .ttl-selector {
   display: flex;

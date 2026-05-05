@@ -36,6 +36,8 @@ export default function App() {
     clipboardEnabled,
     toggleClipboard,
     duressDetected,
+    sendTyping,
+    typingAliases,
   } = useRoom()
 
   const [stegoMode, setStegoMode] = useState(false)
@@ -136,6 +138,8 @@ export default function App() {
               clipboardEnabled={clipboardEnabled}
               onToggleClipboard={toggleClipboard}
               duressDetected={duressDetected}
+              onTyping={sendTyping}
+              typingAliases={typingAliases}
             />
           )}
 

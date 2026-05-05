@@ -20,13 +20,20 @@ export interface PeerSession {
   sessionKey: Uint8Array             // ECDH-derived symmetric key for this peer
 }
 
-export type MessageType = 'TEXT' | 'DECOY' | 'SYSTEM' | 'PUBKEY_HANDSHAKE' | 'TERMINATE' | 'DURESS'
+export type MessageType = 'TEXT' | 'DECOY' | 'SYSTEM' | 'PUBKEY_HANDSHAKE' | 'TERMINATE' | 'DURESS' | 'TYPING'
+
+export interface ReplyTo {
+  id:    string
+  body:  string
+  alias: Alias
+}
 
 export interface WireMessage {
   type:      MessageType
   alias:     Alias
   timestamp: number                  // Rounded to nearest 60s before encryption
   body:      string
+  replyTo?:  ReplyTo
 }
 
 export interface DisplayMessage {
@@ -40,6 +47,7 @@ export interface DisplayMessage {
   confirmed?:       boolean              // true after RECEIVED pressed or peer joins
   queuedExpiresAt?: number              // unix ms when relay event expires (sender's own queued msgs only)
   queuedStatus?:    'sending' | 'queued' | 'failed'
+  replyTo?:         ReplyTo
 }
 
 export type AppScreen = 'entry' | 'chat'
