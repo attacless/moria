@@ -48,6 +48,18 @@ interface ChatRoomProps {
   onArmDeadMan?:        (body: string, activateSeconds: number, tokenHash: string) => Promise<boolean>
   onCancelDeadMan?:     (eventId: string) => Promise<void>
   onSendImage?:         (file: File) => void
+  roomEndTime?:         number | null
+  roomWarningAt?:       number | null
+}
+
+function formatExpiryCountdown(ms: number): string {
+  const totalSecs = Math.max(0, Math.floor(ms / 1000))
+  const d = Math.floor(totalSecs / 86400)
+  const h = Math.floor((totalSecs % 86400) / 3600)
+  const m = Math.floor((totalSecs % 3600) / 60)
+  if (d > 0) return `${d}d ${h}h ${m}m`
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m`
 }
 
 export function ChatRoom({
@@ -74,6 +86,8 @@ export function ChatRoom({
   onArmDeadMan,
   onCancelDeadMan,
   onSendImage,
+  roomEndTime,
+  roomWarningAt,
 }: ChatRoomProps) {
   const [terminating, setTerminating] = useState(false)
   const [clipboardFlash, setClipboardFlash] = useState(false)
@@ -101,6 +115,26 @@ export function ChatRoom({
     const interval = setInterval(() => setTick(t => t + 1), 1_000)
     return () => clearInterval(interval)
   }, [pendingDeadMans.length])
+
+  // Room expiry countdown - 60s tick
+  const [_expiryTick, setExpiryTick]       = useState(0)
+  const [showExpiryModal, setShowExpiryModal] = useState(false)
+
+  useEffect(() => {
+    if (!roomEndTime) return
+    const interval = setInterval(() => {
+      setExpiryTick(t => t + 1)
+      if (Date.now() >= roomEndTime) setShowExpiryModal(true)
+    }, 60_000)
+    // Also check immediately in case we loaded after expiry
+    if (Date.now() >= roomEndTime) setShowExpiryModal(true)
+    return () => clearInterval(interval)
+  }, [roomEndTime])
+
+  const now           = Date.now()
+  const timeRemaining = roomEndTime ? Math.max(0, roomEndTime - now) : 0
+  const isExpired     = roomEndTime !== null && roomEndTime !== undefined && now >= roomEndTime
+  const isWarning     = !isExpired && roomWarningAt !== null && roomWarningAt !== undefined && now >= roomWarningAt
 
   const openDeadManModal = useCallback(() => {
     setDeadManBody('')
@@ -281,6 +315,13 @@ export function ChatRoom({
             <div className={`peer-dot ${peerDotClass}`} />
             <span className="peer-label">{peerLabel}</span>
           </div>
+
+          {/* Room expiry countdown */}
+          {roomEndTime && !isExpired && (
+            <span className={`expiry-countdown${isWarning ? ' warning' : ''}`}>
+              {`expires in ${formatExpiryCountdown(timeRemaining)}`}
+            </span>
+          )}
         </div>
 
         <div className="header-actions">
@@ -499,6 +540,23 @@ export function ChatRoom({
                 type="button"
               >
                 {deadManArming ? 'ARMING...' : 'ARM'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Room expired modal */}
+      {showExpiryModal && (
+        <div className="modal-backdrop">
+          <div className="warn-dialog">
+            <div className="warn-title">ROOM EXPIRED</div>
+            <div className="warn-body">
+              This room's time window has closed. The shared secret no longer maps to an active room. Anyone who joins now will enter the next window with different keys.
+            </div>
+            <div className="warn-actions">
+              <button className="warn-btn primary" onClick={onLeave}>
+                LEAVE
               </button>
             </div>
           </div>

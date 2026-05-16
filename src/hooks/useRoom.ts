@@ -23,7 +23,25 @@ import { mountSecurityMeasures, unmountSecurityMeasures, disableCopyPrevention, 
 import { chunkImage, reassembleImage, IMAGE_MAX_BYTES } from '@/utils/imageChunker'
 import { useMessages } from './useMessages'
 import { useAlias } from './useAlias'
-import type { SessionKeys, DisplayMessage, PendingDeadMan, PeerId, AppScreen, Alias, ReplyTo } from '@/types'
+import type { SessionKeys, DisplayMessage, PendingDeadMan, PeerId, AppScreen, Alias, ReplyTo, ExpiryOption } from '@/types'
+
+// ── Expiry helpers ────────────────────────────────────────────────────────────
+
+const EXPIRY_DURATIONS_MS: Record<Exclude<ExpiryOption, 'NEVER'>, number> = {
+  '24H': 24 * 60 * 60 * 1_000,
+  '7D':  7  * 24 * 60 * 60 * 1_000,
+  '30D': 30 * 24 * 60 * 60 * 1_000,
+}
+
+function computeEpochInfo(expiry: ExpiryOption): { epoch: string; roomEndTime: number; roomWarningAt: number } | null {
+  if (expiry === 'NEVER') return null
+  const duration   = EXPIRY_DURATIONS_MS[expiry]
+  const now        = Date.now()
+  const epochIndex = Math.floor(now / duration)
+  const roomEndTime    = (epochIndex + 1) * duration
+  const roomWarningAt  = roomEndTime - duration * 0.1   // warn at 10% remaining
+  return { epoch: epochIndex.toString(), roomEndTime, roomWarningAt }
+}
 
 // ── Duress helpers ────────────────────────────────────────────────────────────
 
@@ -94,6 +112,8 @@ export function useRoom() {
   const [clipboardEnabled, setClipboardEnabled]   = useState(false)
   const [duressDetected, setDuressDetected]       = useState(false)
   const [pendingDeadMans, setPendingDeadMans]     = useState<PendingDeadMan[]>([])
+  const [roomEndTime, setRoomEndTime]             = useState<number | null>(null)
+  const [roomWarningAt, setRoomWarningAt]         = useState<number | null>(null)
   const lastSentRef                         = useRef<number>(0)
   const lastTypingRef                       = useRef<number>(0)
 
@@ -194,7 +214,7 @@ export function useRoom() {
 
   // ── Join ────────────────────────────────────────────────────────────────
 
-  const join = useCallback(async (password: string) => {
+  const join = useCallback(async (password: string, expiry: ExpiryOption = 'NEVER') => {
     setIsJoining(true)
     setError(null)
 
@@ -202,12 +222,15 @@ export function useRoom() {
       const isDuress   = password.startsWith('@')
       const realSecret = isDuress ? password.slice(1) : password
 
+      const epochInfo = computeEpochInfo(expiry)
+      const epoch     = epochInfo?.epoch
+
       // Derive keys for the real room (duress: stripped secret; normal: full password)
       const [roomId, roomKey, dropId, signingKey] = await Promise.all([
-        deriveRoomId(realSecret),
-        deriveRoomKey(realSecret),
-        deriveDropId(realSecret),
-        deriveDropSigningKey(realSecret),
+        deriveRoomId(realSecret, epoch),
+        deriveRoomKey(realSecret, epoch),
+        deriveDropId(realSecret, epoch),
+        deriveDropSigningKey(realSecret, epoch),
       ])
 
       // Shared WebRTC callbacks - same shape for both normal and decoy rooms
@@ -288,10 +311,10 @@ export function useRoom() {
 
         // 3. Derive decoy keys from the FULL @password (different key space).
         const [decoyRoomId, decoyRoomKey, decoyDropId, decoySigningKey] = await Promise.all([
-          deriveRoomId(password),
-          deriveRoomKey(password),
-          deriveDropId(password),
-          deriveDropSigningKey(password),
+          deriveRoomId(password, epoch),
+          deriveRoomKey(password, epoch),
+          deriveDropId(password, epoch),
+          deriveDropSigningKey(password, epoch),
         ])
 
         const decoyIdentity = await generateIdentity()
@@ -318,6 +341,10 @@ export function useRoom() {
 
         setScreen('chat')
         mountSecurityMeasures()
+        if (epochInfo) {
+          setRoomEndTime(epochInfo.roomEndTime)
+          setRoomWarningAt(epochInfo.roomWarningAt)
+        }
 
         // 5. Inject decoy history after short stagger (looks like prior session).
         setTimeout(() => {
@@ -346,6 +373,10 @@ export function useRoom() {
 
       setScreen('chat')
       mountSecurityMeasures()
+      if (epochInfo) {
+        setRoomEndTime(epochInfo.roomEndTime)
+        setRoomWarningAt(epochInfo.roomWarningAt)
+      }
 
       // Fetch queued dead drops after a short window so the dedup set
       // includes any live messages that arrived via WebRTC during handshake.
@@ -549,6 +580,8 @@ export function useRoom() {
     enableCopyPrevention()
     sessionRef.current = null
     unmountSecurityMeasures()
+    setRoomEndTime(null)
+    setRoomWarningAt(null)
     setScreen('entry')
   }, [clearMessages, rotateAlias])
 
@@ -589,6 +622,8 @@ export function useRoom() {
     enableCopyPrevention()
     sessionRef.current = null
     unmountSecurityMeasures()
+    setRoomEndTime(null)
+    setRoomWarningAt(null)
     setScreen('entry')
 
     await deletionPromise
@@ -618,6 +653,8 @@ export function useRoom() {
     setDuressDetected(false)
     setTypingAliases([])
     setPendingDeadMans([])
+    setRoomEndTime(null)
+    setRoomWarningAt(null)
     sessionRef.current = null
     // rotateAlias() is intentionally omitted here. document.open() in usePanic
     // destroys the React tree before any state update can flush. Alias
@@ -724,5 +761,7 @@ export function useRoom() {
     armDeadMan,
     cancelDeadMan,
     sendImage,
+    roomEndTime,
+    roomWarningAt,
   }
 }

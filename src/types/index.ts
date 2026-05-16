@@ -69,6 +69,8 @@ export interface PendingDeadMan {
   tokenHash?: string    // SHA-256 hex of cancellation token
 }
 
+export type ExpiryOption = 'NEVER' | '24H' | '7D' | '30D'
+
 export type AppScreen = 'entry' | 'chat'
 
 export interface AppState {

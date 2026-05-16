@@ -104,41 +104,49 @@ export async function wasmDerivePeerSessionKey(
 // for drop-in replacement. JS originals are sync; bridge is async.
 
 // Returns hex string - matches deriveRoomId() from @crypto/argon2id
-export async function deriveRoomId(secret: string): Promise<string> {
+// epoch: present for timed rooms, absent for NEVER (backwards compatible).
+// WASM path: epoch incorporated into the secret string since WASM salts are
+// compiled into Rust and cannot be modified from JS.
+// JS path: epoch forwarded to the Argon2id worker for salt modification.
+export async function deriveRoomId(secret: string, epoch?: string): Promise<string> {
   if (USE_WASM_CRYPTO) {
     await initCrypto()
-    return toHex(derive_room_id(secret))
+    const input = epoch !== undefined ? secret + '\x00exp\x00' + epoch : secret
+    return toHex(derive_room_id(input))
   }
-  return jsDeriveRoomId(secret)
+  return jsDeriveRoomId(secret, epoch)
 }
 
 // Returns raw bytes - matches deriveRoomKey() from @crypto/argon2id
-export async function deriveRoomKey(secret: string): Promise<Uint8Array> {
+export async function deriveRoomKey(secret: string, epoch?: string): Promise<Uint8Array> {
   if (USE_WASM_CRYPTO) {
     await initCrypto()
-    return derive_room_key(secret)
+    const input = epoch !== undefined ? secret + '\x00exp\x00' + epoch : secret
+    return derive_room_key(input)
   }
-  return jsDeriveRoomKey(secret)
+  return jsDeriveRoomKey(secret, epoch)
 }
 
 // Returns hex string - matches deriveDropId() from @crypto/argon2id
-export async function deriveDropId(secret: string): Promise<string> {
+export async function deriveDropId(secret: string, epoch?: string): Promise<string> {
   if (USE_WASM_CRYPTO) {
     await initCrypto()
-    return toHex(derive_drop_id(secret))
+    const input = epoch !== undefined ? secret + '\x00exp\x00' + epoch : secret
+    return toHex(derive_drop_id(input))
   }
-  return jsDeriveDropId(secret)
+  return jsDeriveDropId(secret, epoch)
 }
 
 // Returns raw 32-byte Nostr signing key - deterministic per room secret.
 // Used to sign all dead drop events so cross-session NIP-09 deletion works.
 // Caller is responsible for zeroing after use.
-export async function deriveDropSigningKey(secret: string): Promise<Uint8Array> {
+export async function deriveDropSigningKey(secret: string, epoch?: string): Promise<Uint8Array> {
   if (USE_WASM_CRYPTO) {
     await initCrypto()
-    return wasm_derive_drop_signing_key(secret)
+    const input = epoch !== undefined ? secret + '\x00exp\x00' + epoch : secret
+    return wasm_derive_drop_signing_key(input)
   }
-  return jsDeriveDropSigningKey(secret)
+  return jsDeriveDropSigningKey(secret, epoch)
 }
 
 // Returns 8220-byte wire blob - matches encryptMessage() from @crypto/chacha20

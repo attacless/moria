@@ -3,6 +3,7 @@ import { argon2id } from '@noble/hashes/argon2.js'
 export type WorkerRequest = {
   password: string
   type: 'room-id' | 'room-key' | 'drop-id' | 'drop-signing-key'
+  epoch?: string
 }
 
 export type WorkerResponse = {
@@ -19,10 +20,17 @@ const SALTS: Record<WorkerRequest['type'], Uint8Array> = {
 }
 
 self.onmessage = (e: MessageEvent<WorkerRequest>) => {
-  const { password, type } = e.data
+  const { password, type, epoch } = e.data
   const pass = new TextEncoder().encode(password)
 
-  const result = argon2id(pass, SALTS[type], {
+  // For timed rooms, append the epoch index to the salt for domain separation.
+  // NEVER expiry: use original salt unchanged (backwards compatible).
+  const baseSalt = SALTS[type]
+  const salt = epoch !== undefined
+    ? new TextEncoder().encode(new TextDecoder().decode(baseSalt) + '-exp-' + epoch)
+    : baseSalt
+
+  const result = argon2id(pass, salt, {
     m: 16384,   // 16 MiB memory
     t: 3,       // 3 iterations
     p: 1,       // 1 thread (browser limitation)

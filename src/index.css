@@ -434,6 +434,41 @@ input, textarea { font-family: var(--font-body); }
   height: 15px;
 }
 
+/* Expiry selector - entry screen */
+.expiry-selector {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.expiry-prefix {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.25);
+  margin-right: 4px;
+  user-select: none;
+}
+
+.expiry-opt {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.25);
+  background: none;
+  border: none;
+  padding: 5px 8px;
+  cursor: pointer;
+  transition: color 0.15s;
+  border-radius: 2px;
+}
+
+.expiry-opt:hover  { color: rgba(255, 255, 255, 0.5); }
+.expiry-opt.active { color: rgba(255, 255, 255, 0.8); }
+
 /* Relay status */
 .relay-status {
   position: fixed;
@@ -667,6 +702,26 @@ input, textarea { font-family: var(--font-body); }
   letter-spacing: 0.06em;
   color: rgba(255, 255, 255, 0.4);
   white-space: nowrap;
+}
+
+/* Room expiry countdown in header */
+.expiry-countdown {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.25);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.expiry-countdown.warning {
+  color: rgba(255, 255, 255, 0.5);
+  animation: expiryPulse 2s ease-in-out infinite;
+}
+
+@keyframes expiryPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
 }
 
 .header-actions {

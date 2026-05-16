@@ -1,9 +1,17 @@
 import { useState, useCallback, useEffect, type FormEvent } from 'react'
 import { StarSvg } from './StarSvg'
 import { webRTCAvailable, wasmAvailable } from '@/capabilities'
+import type { ExpiryOption } from '@/types'
+
+const EXPIRY_OPTIONS: Array<{ label: string; value: ExpiryOption }> = [
+  { label: 'NEVER', value: 'NEVER' },
+  { label: '24H',   value: '24H'   },
+  { label: '7D',    value: '7D'    },
+  { label: '30D',   value: '30D'   },
+]
 
 interface EntryScreenProps {
-  onJoin:    (password: string) => Promise<void>
+  onJoin:    (password: string, expiry: ExpiryOption) => Promise<void>
   isJoining: boolean
   error:     string | null
 }
@@ -46,6 +54,7 @@ export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
   const [password, setPassword]             = useState('')
   const [showPass, setShowPass]             = useState(false)
   const [focused, setFocused]               = useState(false)
+  const [expiry, setExpiry]                 = useState<ExpiryOption>('NEVER')
   const [liveRelayCount, setLiveRelayCount] = useState<number | null>(null)
   const [showWebRTCModal, setShowWebRTCModal] = useState(!webRTCAvailable)
 
@@ -78,8 +87,8 @@ export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
   const handleSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault()
     if (!canJoin) return
-    await onJoin(password)
-  }, [canJoin, onJoin, password])
+    await onJoin(password, expiry)
+  }, [canJoin, onJoin, password, expiry])
 
   const relayState = liveRelayCount === null ? 'connecting'
     : liveRelayCount > 0 ? 'online' : 'offline'
@@ -134,6 +143,20 @@ export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
             style={{ color: strength !== 'none' ? `var(--strength-${strength})` : 'var(--text-muted)' }}
           >
             {cfg.label}
+          </div>
+
+          <div className="expiry-selector">
+            <span className="expiry-prefix">ROOM EXPIRES</span>
+            {EXPIRY_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                className={`expiry-opt${expiry === opt.value ? ' active' : ''}`}
+                onClick={() => setExpiry(opt.value)}
+                type="button"
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
 
           <div className={`error-msg${error ? ' visible' : ''}`}>{error ?? ''}</div>
