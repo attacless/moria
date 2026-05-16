@@ -417,6 +417,18 @@ export function useRoom() {
     if (result.success) {
       // Prevent sender from seeing their own switch as a received activated message.
       seenDropIds.current.add(`${alias}:${publishedTimestamp}:${body}`)
+
+      // Show the pending strip immediately - no need to wait for the next poll cycle.
+      if (result.receipt) {
+        setPendingDeadMans(prev => [...prev, {
+          eventId:    result.receipt!.eventId,
+          alias,
+          timestamp:  Date.now(),
+          activateAt: activateAfter,
+          body,
+          tokenHash,
+        }])
+      }
     }
 
     return result.success
