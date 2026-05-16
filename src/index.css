@@ -1139,24 +1139,22 @@ input, textarea { font-family: var(--font-body); }
 .msg-input:focus { border-color: var(--border-focus); }
 
 .send-btn {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 9px 16px;
-  color: rgba(255, 255, 255, 0.5);
-  font-family: var(--font-hero);
-  font-weight: 500;
-  font-size: 0.62rem;
-  letter-spacing: 0.2em;
+  background:     none;
+  border:         1px solid rgba(255, 255, 255, 0.12);
+  border-radius:  var(--radius);
+  padding:        8px 10px;
+  color:          rgba(255, 255, 255, 0.35);
+  font-family:    var(--font-mono);
+  font-size:      9px;
+  letter-spacing: 1px;
   text-transform: uppercase;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.2s;
-  text-indent: 0.2em;
-  min-width: 72px;
-  text-align: center;
+  cursor:         pointer;
+  flex-shrink:    0;
+  transition:     color 0.15s, border-color 0.15s;
+  white-space:    nowrap;
+  text-align:     center;
 }
-.send-btn:hover { border-color: var(--accent); color: var(--text-primary); background: var(--accent-dim); }
+.send-btn:hover { border-color: rgba(255, 255, 255, 0.25); color: rgba(255, 255, 255, 0.6); }
 .send-btn:active { transform: scale(0.97); }
 .send-btn:disabled { cursor: not-allowed; opacity: 0.4; }
 .send-btn.active { border-color: var(--border-focus); color: var(--text-primary); }
@@ -1905,7 +1903,7 @@ input, textarea { font-family: var(--font-body); }
 
   .input-bar    { padding: 8px 12px; gap: 6px; padding-bottom: env(safe-area-inset-bottom); }
   .msg-input    { padding: 9px 12px; font-size: 16px; } /* prevent iOS Safari auto-zoom */
-  .send-btn     { padding: 10px 14px; font-size: 0.65rem; min-width: 60px; }
+  .send-btn     { padding: 8px 10px; font-size: 9px; }
 
   .chat-footer  { padding: 6px 14px; flex-direction: column; align-items: flex-start; gap: 1px; padding-bottom: max(7px, env(safe-area-inset-bottom)); }
   .panic-hint, .session-hint { font-size: 0.6rem; }
