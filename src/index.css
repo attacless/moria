@@ -1276,7 +1276,7 @@ input, textarea { font-family: var(--font-body); }
 }
 .deadman-btn:hover        { color: rgba(255, 255, 255, 0.6); border-color: rgba(255, 255, 255, 0.25); }
 .deadman-btn:active       { transform: scale(0.97); }
-.deadman-btn:disabled     { cursor: not-allowed; opacity: 0.4; }
+.deadman-btn:disabled     { cursor: not-allowed; opacity: 1; }
 .deadman-btn.active       { color: rgba(255, 255, 255, 0.9); border-color: rgba(255, 255, 255, 0.3); }
 .deadman-btn.rate-limited { border-color: var(--amber-border); color: var(--amber); cursor: not-allowed; }
 
