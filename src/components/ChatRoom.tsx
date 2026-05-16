@@ -415,7 +415,7 @@ export function ChatRoom({
       <InputBar
         onSend={handleSend}
         disabled={false}
-        placeholder={peerCount === 0 ? 'no peers - queue a message...' : 'type message...'}
+        placeholder={peerCount === 0 ? 'no peers online - queue a dead drop message...' : 'type message...'}
         dropError={dropError}
         onClearError={onClearError}
         rateLimited={rateLimited}
