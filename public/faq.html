@@ -492,6 +492,16 @@ details summary:hover .chevron  { color: var(--text-secondary); }
         is happening versus when the channel is idle.</p>
       </div>
     </details>
+
+    <details>
+      <summary>
+        <span class="question">How do typing indicators work?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
+      <div class="answer">
+        <p>When someone in the room is typing, you see a typing indicator. The indicator is an encrypted control message padded to the same 8,192 bytes as every other packet. It is indistinguishable from real messages and chaff traffic. No metadata about typing patterns is exposed.</p>
+      </div>
+    </details>
   </div>
 
   <div class="section">
@@ -595,6 +605,16 @@ details summary:hover .chevron  { color: var(--text-secondary); }
             readable by anyone with that secret until expiry.
           </div>
         </div>
+      </div>
+    </details>
+
+    <details>
+      <summary>
+        <span class="question">How does the Dead Man's switch work?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
+      <div class="answer">
+        <p>You can schedule a message that activates automatically after a delay (1 to 48 hours). The message is encrypted and published to the relay immediately but hidden from everyone until the timer expires. A six-character cancellation code is shown once when you arm the switch. Enter that code before the timer runs out to delete the message. If no one cancels it, the message becomes visible to anyone in the room. The cancellation code is never stored on the relay. Only its SHA-256 hash is embedded in the encrypted payload.</p>
       </div>
     </details>
   </div>
@@ -930,6 +950,26 @@ details summary:hover .chevron  { color: var(--text-secondary); }
         <p><span class="hl">Traffic analysis resistance: active.</span> Three countermeasures operate simultaneously on the live channel. First, every message is padded to a fixed 8,192-byte block using a 2-byte length prefix filled with cryptographically random noise. A two-character message produces identical ciphertext size to a maximum-length message. Second, timestamps embedded in encrypted payloads are rounded to 60-second granularity, preventing cross-channel timing correlation. Third, encrypted dummy messages are sent to all connected peers at random intervals between 10 and 60 seconds. These decoy messages are the same size, encrypted with the same session key, and transit the same channel as real messages. The receiving client silently discards them after decryption. An observer monitoring the WebRTC connection cannot determine when real communication is happening versus when the channel is idle.</p>
         <p><span class="hl">Connection drops.</span> If the connection drops mid-session, the browser attempts to reconnect. Messages sent during the gap are lost until the connection reestablishes or the room reverts to dead drop mode.</p>
         <p><span class="hl">Connection unavailable.</span> If no peer-to-peer connection is established within 30 seconds, Moria displays a prompt offering to leave the room or continue in dead drop mode. This typically indicates that both devices are behind restrictive networks.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>
+        <span class="question">What is inline image sharing?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
+      <div class="answer">
+        <p>In live peer-to-peer chat, you can paste or pick an image to share. The image is split into encrypted chunks, sent over the same data channel as messages, and reassembled on the other side. Images are held in memory only, never saved to disk, and destroyed when the session ends. Maximum size is 2MB. Image sharing is not available in dead drop mode due to relay size limits. Tap an image to view it fullscreen.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>
+        <span class="question">Can I share images in dead drop mode?</span>
+        <span class="chevron">&#x25BE;</span>
+      </summary>
+      <div class="answer">
+        <p>No. Images are only supported in live peer-to-peer chat. Nostr relay events have size limits that prevent transmitting image data through the dead drop path.</p>
       </div>
     </details>
 
