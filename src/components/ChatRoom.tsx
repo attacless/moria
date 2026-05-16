@@ -216,9 +216,11 @@ export function ChatRoom({
     }
     // Never show again once dismissed this session
     if (waitModalDismissed) return
+    // Don't interrupt the dead man modal - restart the timer after it closes
+    if (showDeadManModal) return
     const timer = setTimeout(() => setShowWaitModal(true), 20_000)
     return () => clearTimeout(timer)
-  }, [peerCount, waitModalDismissed])
+  }, [peerCount, waitModalDismissed, showDeadManModal])
 
   // Dead drop collapse state lives here (not MessageList) so it survives any remount
   const [collapsedDrops, setCollapsedDrops] = useState<Set<string>>(new Set())
@@ -503,13 +505,13 @@ export function ChatRoom({
       {showWaitModal && (
         <div className="modal-backdrop">
           <div className="warn-dialog">
-            <div className="warn-title">connection unavailable</div>
+            <div className="warn-title">no peers online</div>
             <div className="warn-body">
-              Your network may not support direct peer-to-peer connections. You can still communicate using dead drop mode. New messages appear automatically every 30 seconds.
+              No one else is in this room yet. You can still communicate using dead drop mode. New messages appear automatically every 30 seconds. If a peer joins and live chat does not connect, your network may not support direct peer-to-peer connections.
             </div>
             <div className="warn-actions">
               <button className="warn-btn ghost" onClick={onLeave}>
-                leave
+                leave room
               </button>
               <button
                 className="warn-btn primary"
