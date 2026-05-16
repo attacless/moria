@@ -3,6 +3,7 @@ import type { Room, ActionSender } from 'trystero'
 import { syncDerivePeerSessionKey, syncDecrypt, syncEncrypt, destroyIdentity, destroyPeerSession } from '@/wasm'
 import { roundTimestamp } from '@crypto/chacha20'
 import { resetDeadDropRateLimits } from './deadDrop'
+import { deriveVerifyWords } from '@/utils/verifyWords'
 import type { SessionKeys, PeerSession, PeerId, WireMessage, DisplayMessage, Alias, ReplyTo } from '@/types'
 
 // Trystero delivers binary action data as ArrayBuffer regardless of the
@@ -42,6 +43,7 @@ export interface RoomCallbacks {
   onRoomFull:      () => void
   onTyping:        (alias: Alias) => void
   onImageChunk?:   (imageId: string, chunkIndex: number, totalChunks: number, imageData: string, mimeType: string, alias: Alias) => void
+  onVerifyWords?:  (words: string[]) => void  // fired once when first peer completes handshake
 }
 
 export async function joinChatRoom(
@@ -156,6 +158,16 @@ export async function joinChatRoom(
 
       // Now the peer is crypto-confirmed - fire the callback
       callbacks.onPeerJoin(peerId)
+
+      // Derive verification words for the first peer that completes the handshake.
+      // Words are derived from a domain-separated hash of the session key.
+      // Both parties compute the same words (ECDH is commutative - same shared secret).
+      // The session key is NOT exposed outside this module; only the words are.
+      if (callbacks.onVerifyWords && peers.size === 1) {
+        deriveVerifyWords(sessionKey)
+          .then(words => callbacks.onVerifyWords!(words))
+          .catch(err => console.error('[room] verify word derivation failed', err))
+      }
     } catch (err) {
       console.error('[room] key derivation failed for peer', peerId, err)
     }

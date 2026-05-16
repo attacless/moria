@@ -33,8 +33,6 @@ export default function App() {
     confirmDeadDrop,
     rateLimited,
     roomFull,
-    clipboardEnabled,
-    toggleClipboard,
     duressDetected,
     sendTyping,
     typingAliases,
@@ -42,6 +40,7 @@ export default function App() {
     armDeadMan,
     cancelDeadMan,
     sendImage,
+    verifyWords,
   } = useRoom()
 
   const [stegoMode, setStegoMode] = useState(false)
@@ -139,8 +138,6 @@ export default function App() {
               onClearError={clearDropError}
               rateLimited={rateLimited}
               roomFull={roomFull}
-              clipboardEnabled={clipboardEnabled}
-              onToggleClipboard={toggleClipboard}
               duressDetected={duressDetected}
               onTyping={sendTyping}
               typingAliases={typingAliases}
@@ -148,6 +145,7 @@ export default function App() {
               onArmDeadMan={armDeadMan}
               onCancelDeadMan={cancelDeadMan}
               onSendImage={sendImage}
+              verifyWords={verifyWords}
             />
           )}
 

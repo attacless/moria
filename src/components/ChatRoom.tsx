@@ -39,8 +39,6 @@ interface ChatRoomProps {
   onClearError?:        () => void
   rateLimited?:         boolean
   roomFull?:            boolean
-  clipboardEnabled:     boolean
-  onToggleClipboard:    () => void
   duressDetected?:      boolean
   onTyping?:            () => void
   typingAliases?:       Alias[]
@@ -48,7 +46,9 @@ interface ChatRoomProps {
   onArmDeadMan?:        (body: string, activateSeconds: number, tokenHash: string) => Promise<boolean>
   onCancelDeadMan?:     (eventId: string) => Promise<void>
   onSendImage?:         (file: File) => void
+  verifyWords?:         string[] | null
 }
+
 
 export function ChatRoom({
   roomId,
@@ -65,8 +65,6 @@ export function ChatRoom({
   onClearError,
   rateLimited,
   roomFull,
-  clipboardEnabled,
-  onToggleClipboard,
   duressDetected,
   onTyping,
   typingAliases = [],
@@ -74,9 +72,9 @@ export function ChatRoom({
   onArmDeadMan,
   onCancelDeadMan,
   onSendImage,
+  verifyWords,
 }: ChatRoomProps) {
   const [terminating, setTerminating] = useState(false)
-  const [clipboardFlash, setClipboardFlash] = useState(false)
 
   // ── Dead man's switch modal ─────────────────────────────────────────────
   const [showDeadManModal, setShowDeadManModal] = useState(false)
@@ -101,6 +99,15 @@ export function ChatRoom({
     const interval = setInterval(() => setTick(t => t + 1), 1_000)
     return () => clearInterval(interval)
   }, [pendingDeadMans.length])
+
+  // Acoustic verification modal
+  const [showVerifyModal, setShowVerifyModal] = useState(false)
+
+  useEffect(() => {
+    if (!showVerifyModal) return
+    const timer = setTimeout(() => setShowVerifyModal(false), 60_000)
+    return () => clearTimeout(timer)
+  }, [showVerifyModal])
 
   const openDeadManModal = useCallback(() => {
     setDeadManBody('')
@@ -236,15 +243,6 @@ export function ChatRoom({
     })
   }, [])
 
-  function handleToggleClipboard() {
-    const turningOn = !clipboardEnabled
-    onToggleClipboard()
-    if (turningOn) {
-      setClipboardFlash(true)
-      setTimeout(() => setClipboardFlash(false), 2000)
-    }
-  }
-
   async function handleTerminate() {
     setTerminating(true)
     await onTerminate()
@@ -281,17 +279,19 @@ export function ChatRoom({
             <div className={`peer-dot ${peerDotClass}`} />
             <span className="peer-label">{peerLabel}</span>
           </div>
+
         </div>
 
         <div className="header-actions">
-          <button
-            className={`action-btn${clipboardEnabled ? ' clipboard-on' : ''}`}
-            onClick={handleToggleClipboard}
-            title={clipboardEnabled ? 'Clipboard enabled - click to disable' : 'Enable clipboard for this session'}
-            style={clipboardFlash ? { color: 'rgba(200,170,80,1)', borderColor: 'rgba(200,170,80,0.4)', background: 'rgba(200,170,80,0.1)' } : undefined}
-          >
-            {clipboardFlash ? '✓' : clipboardEnabled ? 'CLIPBOARD ON' : 'CLIPBOARD OFF'}
-          </button>
+          {peerCount >= 1 && verifyWords && (
+            <button
+              className="action-btn"
+              onClick={() => setShowVerifyModal(true)}
+              title="Verify connection - read words aloud to confirm no MITM"
+            >
+              VERIFY
+            </button>
+          )}
 
           <button className="action-btn leave" onClick={onLeave}>
             LEAVE
@@ -499,6 +499,35 @@ export function ChatRoom({
                 type="button"
               >
                 {deadManArming ? 'ARMING...' : 'ARM'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Acoustic verification modal */}
+      {showVerifyModal && verifyWords && (
+        <div className="modal-backdrop">
+          <div className="warn-dialog deadman-dialog">
+            <div className="warn-title">WATCHWORDS</div>
+            <div className="warn-body" style={{ textAlign: 'center' }}>
+              Share these four words with your peer over a separate channel. If they match, no one is intercepting your connection.
+            </div>
+            <div className="verify-words">
+              {verifyWords.map((word, i) => (
+                <span key={i} className="verify-word">{word}</span>
+              ))}
+            </div>
+            <div className="verify-hint">
+              These words change every session. A mismatch means your connection may be compromised.
+            </div>
+            <div className="warn-actions">
+              <button
+                className="warn-btn primary"
+                onClick={() => setShowVerifyModal(false)}
+                type="button"
+              >
+                CLOSE
               </button>
             </div>
           </div>

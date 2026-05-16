@@ -19,7 +19,7 @@ import { resetPeerColors } from '@/utils/peerColors'
 import type { DeadDropReceipt } from '@transport/deadDrop'
 import type { PublishResult } from '@transport/deadDrop'
 import { roundTimestamp } from '@crypto/chacha20'
-import { mountSecurityMeasures, unmountSecurityMeasures, disableCopyPrevention, enableCopyPrevention } from '@/security'
+import { mountSecurityMeasures, unmountSecurityMeasures, enableCopyPrevention } from '@/security'
 import { chunkImage, reassembleImage, IMAGE_MAX_BYTES } from '@/utils/imageChunker'
 import { useMessages } from './useMessages'
 import { useAlias } from './useAlias'
@@ -91,9 +91,9 @@ export function useRoom() {
   const [dropError, setDropError]           = useState<string | null>(null)
   const [rateLimited, setRateLimited]       = useState(false)
   const [roomFull, setRoomFull]             = useState(false)
-  const [clipboardEnabled, setClipboardEnabled]   = useState(false)
   const [duressDetected, setDuressDetected]       = useState(false)
   const [pendingDeadMans, setPendingDeadMans]     = useState<PendingDeadMan[]>([])
+  const [verifyWords, setVerifyWords]             = useState<string[] | null>(null)
   const lastSentRef                         = useRef<number>(0)
   const lastTypingRef                       = useRef<number>(0)
 
@@ -107,7 +107,7 @@ export function useRoom() {
   // Outlives the burn lifecycle so polls never re-display a burned message.
   // Cleared on leave/terminate/panic alongside other session state.
   const seenDropIds      = useRef<Set<string>>(new Set())
-  // Image reassembly buffer: imageId -> partial chunk state + 30s expiry timer
+  // Image reassembly buffer: imageId -> partial chunk state + 30s cleanup timer
   const imageChunkBuffer = useRef<Map<string, {
     chunks:      Map<number, string>
     totalChunks: number
@@ -221,9 +221,11 @@ export function useRoom() {
         },
 
         onPeerLeave: (_peerId: PeerId) => {
-          setPeerCount(getPeerCount())
+          const remaining = getPeerCount()
+          setPeerCount(remaining)
           setPresenceCount(getRawPeerCount())
           extendBurnTimers(Date.now() + 6 * 60 * 60 * 1_000)
+          if (remaining === 0) setVerifyWords(null)
         },
 
         onPresenceJoin: (_peerId: PeerId) => {
@@ -238,8 +240,9 @@ export function useRoom() {
           removeByAlias(terminatedAlias)
         },
 
-        onRoomFull: () => setRoomFull(true),
-        onTyping:   (peerAlias: Alias) => handleTypingPeer(peerAlias),
+        onRoomFull:     () => setRoomFull(true),
+        onTyping:       (peerAlias: Alias) => handleTypingPeer(peerAlias),
+        onVerifyWords:  (words: string[]) => setVerifyWords(words),
 
         onImageChunk: (imageId: string, chunkIndex: number, totalChunks: number, imageData: string, mimeType: string, peerAlias: Alias) => {
           let entry = imageChunkBuffer.current.get(imageId)
@@ -542,13 +545,13 @@ export function useRoom() {
     setPeerCount(0)
     setPresenceCount(0)
     setRoomFull(false)
-    setClipboardEnabled(false)
     setDuressDetected(false)
     setTypingAliases([])
     setPendingDeadMans([])
     enableCopyPrevention()
     sessionRef.current = null
     unmountSecurityMeasures()
+    setVerifyWords(null)
     setScreen('entry')
   }, [clearMessages, rotateAlias])
 
@@ -582,13 +585,13 @@ export function useRoom() {
     setPeerCount(0)
     setPresenceCount(0)
     setRoomFull(false)
-    setClipboardEnabled(false)
     setDuressDetected(false)
     setTypingAliases([])
     setPendingDeadMans([])
     enableCopyPrevention()
     sessionRef.current = null
     unmountSecurityMeasures()
+    setVerifyWords(null)
     setScreen('entry')
 
     await deletionPromise
@@ -614,10 +617,10 @@ export function useRoom() {
     setPeerCount(0)
     setPresenceCount(0)
     setRoomFull(false)
-    setClipboardEnabled(false)
     setDuressDetected(false)
     setTypingAliases([])
     setPendingDeadMans([])
+    setVerifyWords(null)
     sessionRef.current = null
     // rotateAlias() is intentionally omitted here. document.open() in usePanic
     // destroys the React tree before any state update can flush. Alias
@@ -636,14 +639,6 @@ export function useRoom() {
     sendTypingIndicator(alias)
   }, [alias])
 
-  const toggleClipboard = useCallback(() => {
-    setClipboardEnabled(prev => {
-      const next = !prev
-      if (next) disableCopyPrevention()
-      else      enableCopyPrevention()
-      return next
-    })
-  }, [])
 
   // ── Dead drop polling ─────────────────────────────────────────────────────
   // While in chat with no live peers, poll for new dead drops every 30s.
@@ -715,8 +710,6 @@ export function useRoom() {
     terminate,
     rateLimited,
     roomFull,
-    clipboardEnabled,
-    toggleClipboard,
     duressDetected,
     sendTyping,
     typingAliases,
@@ -724,5 +717,6 @@ export function useRoom() {
     armDeadMan,
     cancelDeadMan,
     sendImage,
+    verifyWords,
   }
 }
