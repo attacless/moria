@@ -47,6 +47,7 @@ interface ChatRoomProps {
   pendingDeadMans?:     PendingDeadMan[]
   onArmDeadMan?:        (body: string, activateSeconds: number, tokenHash: string) => Promise<boolean>
   onCancelDeadMan?:     (eventId: string) => Promise<void>
+  onSendImage?:         (file: File) => void
 }
 
 export function ChatRoom({
@@ -72,6 +73,7 @@ export function ChatRoom({
   pendingDeadMans = [],
   onArmDeadMan,
   onCancelDeadMan,
+  onSendImage,
 }: ChatRoomProps) {
   const [terminating, setTerminating] = useState(false)
   const [clipboardFlash, setClipboardFlash] = useState(false)
@@ -192,7 +194,8 @@ export function ChatRoom({
   const [replyTo, setReplyTo] = useState<ReplyTo | null>(null)
 
   const handleSelectReply = useCallback((msg: DisplayMessage) => {
-    setReplyTo({ id: msg.id, body: msg.body.slice(0, 100), alias: msg.alias })
+    const body = msg.imageUrl ? 'Image' : msg.body.slice(0, 100)
+    setReplyTo({ id: msg.id, body, alias: msg.alias })
   }, [])
 
   const handleCancelReply = useCallback(() => setReplyTo(null), [])
@@ -421,6 +424,7 @@ export function ChatRoom({
         onCancelReply={handleCancelReply}
         onTyping={handleTyping}
         {...(onArmDeadMan ? { onOpenDeadMan: openDeadManModal } : {})}
+        {...(onSendImage   ? { onSendImage }                    : {})}
       />
 
       {/* Footer */}

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { DisplayMessage } from '@/types'
 import { getPeerColor } from '@/utils/peerColors'
 
@@ -48,6 +48,7 @@ function getBurnClass(secs: number): string {
 export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining, onConfirmDeadDrop, hasPeers: _hasPeers, peerCount, collapsedDrops, onToggleDropCollapse, onSelectReply }: MessageListProps) {
   const bottomRef    = useRef<HTMLDivElement>(null)
   const prevCountRef = useRef(messages.length)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (messages.length > prevCountRef.current) {
@@ -159,7 +160,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
         return (
           <div
             key={msg.id}
-            className={`message fade-in ${isMe ? 'own' : 'received'}`}
+            className={`message fade-in ${isMe ? 'own' : 'received'}${msg.imageUrl ? ' has-image' : ''}`}
             style={{ opacity, transition, cursor: onSelectReply ? 'pointer' : undefined }}
             onClick={() => onSelectReply?.(msg)}
           >
@@ -181,7 +182,17 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
             </div>
 
             {/* Body */}
-            <div className="msg-body">{msg.body}</div>
+            {msg.imageUrl
+              ? (
+                <img
+                  src={msg.imageUrl}
+                  className="msg-image"
+                  alt="shared image"
+                  onClick={e => { e.stopPropagation(); setLightboxUrl(msg.imageUrl!) }}
+                />
+              )
+              : <div className="msg-body">{msg.body}</div>
+            }
 
             {/* Footer: status text */}
             <div className="msg-footer">
@@ -198,6 +209,20 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
         )
       })}
       <div ref={bottomRef} />
+
+      {lightboxUrl && (
+        <div
+          className="image-lightbox-overlay"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <img
+            src={lightboxUrl}
+            className="image-lightbox-img"
+            alt="fullscreen"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   )
 }

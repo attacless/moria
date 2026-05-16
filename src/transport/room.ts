@@ -41,6 +41,7 @@ export interface RoomCallbacks {
   onTerminate:     (alias: Alias) => void
   onRoomFull:      () => void
   onTyping:        (alias: Alias) => void
+  onImageChunk?:   (imageId: string, chunkIndex: number, totalChunks: number, imageData: string, mimeType: string, alias: Alias) => void
 }
 
 export async function joinChatRoom(
@@ -183,6 +184,28 @@ export async function joinChatRoom(
       return
     }
 
+    if (msg.type === 'IMAGE') return  // reserved, not yet used for incoming
+
+    if (msg.type === 'IMAGE_CHUNK') {
+      if (
+        callbacks.onImageChunk &&
+        msg.imageId    !== undefined &&
+        msg.chunkIndex !== undefined &&
+        msg.totalChunks !== undefined &&
+        msg.imageData  !== undefined
+      ) {
+        callbacks.onImageChunk(
+          msg.imageId,
+          msg.chunkIndex,
+          msg.totalChunks,
+          msg.imageData,
+          msg.mimeType ?? '',
+          msg.alias,
+        )
+      }
+      return
+    }
+
     const display: DisplayMessage = {
       id:        crypto.randomUUID(),
       alias:     msg.alias,
@@ -263,6 +286,20 @@ export function sendTypingIndicator(alias: Alias): void {
       const encrypted = syncEncrypt(wire, peer.sessionKey)
       sendWire!(encrypted, [peerId])
     } catch (_) {}
+  })
+}
+
+// Send an arbitrary WireMessage to all peers (encrypt per-peer).
+// Used by the image chunker to broadcast IMAGE_CHUNK frames.
+export function sendWireMessage(wire: WireMessage): void {
+  if (!sendWire || peers.size === 0) return
+  peers.forEach((peer, peerId) => {
+    try {
+      const encrypted = syncEncrypt(wire, peer.sessionKey)
+      sendWire!(encrypted, [peerId])
+    } catch (err) {
+      console.error('[room] encrypt failed for peer', peerId, err)
+    }
   })
 }
 

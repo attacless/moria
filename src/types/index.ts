@@ -20,7 +20,7 @@ export interface PeerSession {
   sessionKey: Uint8Array             // ECDH-derived symmetric key for this peer
 }
 
-export type MessageType = 'TEXT' | 'DECOY' | 'SYSTEM' | 'PUBKEY_HANDSHAKE' | 'TERMINATE' | 'DURESS' | 'TYPING' | 'DEADMAN'
+export type MessageType = 'TEXT' | 'DECOY' | 'SYSTEM' | 'PUBKEY_HANDSHAKE' | 'TERMINATE' | 'DURESS' | 'TYPING' | 'DEADMAN' | 'IMAGE' | 'IMAGE_CHUNK'
 
 export interface ReplyTo {
   id:    string
@@ -36,6 +36,11 @@ export interface WireMessage {
   replyTo?:       ReplyTo
   activateAfter?: number                  // Unix seconds - DEADMAN only; client enforces
   tokenHash?:     string                  // SHA-256 hex of cancellation token - DEADMAN only
+  imageId?:       string                  // IMAGE_CHUNK only: shared ID for all chunks of one image
+  chunkIndex?:    number                  // IMAGE_CHUNK only: zero-based index of this chunk
+  totalChunks?:   number                  // IMAGE_CHUNK only: total chunk count
+  imageData?:     string                  // IMAGE_CHUNK only: base64 chunk payload
+  mimeType?:      string                  // IMAGE_CHUNK only: image MIME type (first chunk only)
 }
 
 export interface DisplayMessage {
@@ -52,6 +57,7 @@ export interface DisplayMessage {
   queuedExpiresAt?: number              // unix ms when relay event expires (sender's own queued msgs only)
   queuedStatus?:    'sending' | 'queued' | 'failed'
   replyTo?:         ReplyTo
+  imageUrl?:        string              // object URL for inline image (revoked on session end)
 }
 
 export interface PendingDeadMan {

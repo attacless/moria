@@ -5,6 +5,7 @@ import {
   leaveRoom,
   sendChatMessage,
   sendTypingIndicator,
+  sendWireMessage,
   terminateAndLeave,
   getPeerCount,
   getRawPeerCount,
@@ -19,6 +20,7 @@ import type { DeadDropReceipt } from '@transport/deadDrop'
 import type { PublishResult } from '@transport/deadDrop'
 import { roundTimestamp } from '@crypto/chacha20'
 import { mountSecurityMeasures, unmountSecurityMeasures, disableCopyPrevention, enableCopyPrevention } from '@/security'
+import { chunkImage, reassembleImage, IMAGE_MAX_BYTES } from '@/utils/imageChunker'
 import { useMessages } from './useMessages'
 import { useAlias } from './useAlias'
 import type { SessionKeys, DisplayMessage, PendingDeadMan, PeerId, AppScreen, Alias, ReplyTo } from '@/types'
@@ -105,6 +107,15 @@ export function useRoom() {
   // Outlives the burn lifecycle so polls never re-display a burned message.
   // Cleared on leave/terminate/panic alongside other session state.
   const seenDropIds      = useRef<Set<string>>(new Set())
+  // Image reassembly buffer: imageId -> partial chunk state + 30s expiry timer
+  const imageChunkBuffer = useRef<Map<string, {
+    chunks:      Map<number, string>
+    totalChunks: number
+    mimeType:    string
+    timer:       ReturnType<typeof setTimeout>
+  }>>(new Map())
+  // All object URLs created this session - revoked on leave/terminate/panic
+  const imageObjectUrls  = useRef<Set<string>>(new Set())
   const { messages, addMessage, addMessages, clearMessages, burnSecondsRemaining, confirmDeadDrop, autoConfirmDeadDrops, confirmAllDeadDrops, removeByAlias, extendBurnTimers, updateMessageStatus, clearQueuedStatus } = useMessages()
   const { alias, rotateAlias } = useAlias()
 
@@ -229,6 +240,35 @@ export function useRoom() {
 
         onRoomFull: () => setRoomFull(true),
         onTyping:   (peerAlias: Alias) => handleTypingPeer(peerAlias),
+
+        onImageChunk: (imageId: string, chunkIndex: number, totalChunks: number, imageData: string, mimeType: string, peerAlias: Alias) => {
+          let entry = imageChunkBuffer.current.get(imageId)
+          if (!entry) {
+            const timer = setTimeout(() => {
+              imageChunkBuffer.current.delete(imageId)
+            }, 30_000)
+            entry = { chunks: new Map(), totalChunks, mimeType: '', timer }
+            imageChunkBuffer.current.set(imageId, entry)
+          }
+          entry.chunks.set(chunkIndex, imageData)
+          if (mimeType) entry.mimeType = mimeType  // only chunk 0 carries this
+
+          if (entry.chunks.size === entry.totalChunks) {
+            clearTimeout(entry.timer)
+            imageChunkBuffer.current.delete(imageId)
+            const url = reassembleImage(entry.chunks, entry.mimeType || 'image/jpeg')
+            imageObjectUrls.current.add(url)
+            addMessage({
+              id:        crypto.randomUUID(),
+              alias:     peerAlias,
+              timestamp: roundTimestamp(Date.now()),
+              body:      '',
+              isMine:    false,
+              burnAt:    Date.now() + 5 * 60 * 1_000,
+              imageUrl:  url,
+            })
+          }
+        },
       }
 
       // ── Duress path ───────────────────────────────────────────────────────
@@ -443,6 +483,44 @@ export function useRoom() {
     setPendingDeadMans(prev => prev.filter(d => d.eventId !== eventId))
   }, [])
 
+  // ── Image send ──────────────────────────────────────────────────────────
+
+  const sendImage = useCallback(async (file: File): Promise<void> => {
+    if (file.size > IMAGE_MAX_BYTES) return
+    if (getPeerCount() === 0) return
+
+    const { imageId, mimeType, chunks } = await chunkImage(file)
+    const totalChunks = chunks.length
+    const ts = roundTimestamp(Date.now())
+
+    for (let i = 0; i < chunks.length; i++) {
+      sendWireMessage({
+        type:        'IMAGE_CHUNK',
+        alias,
+        timestamp:   ts,
+        body:        '',
+        imageId,
+        chunkIndex:  i,
+        totalChunks,
+        imageData:   chunks[i]!,
+        ...(i === 0 ? { mimeType } : {}),
+      })
+    }
+
+    // Show sender's own image immediately via object URL from the original File
+    const url = URL.createObjectURL(file)
+    imageObjectUrls.current.add(url)
+    addMessage({
+      id:        crypto.randomUUID(),
+      alias,
+      timestamp: ts,
+      body:      '',
+      isMine:    true,
+      burnAt:    Date.now() + 5 * 60 * 1_000,
+      imageUrl:  url,
+    })
+  }, [alias, addMessage])
+
   // ── Leave ────────────────────────────────────────────────────────────────
 
   const leave = useCallback(() => {
@@ -452,6 +530,10 @@ export function useRoom() {
     sessionRef.current?.signingKey.fill(0)
     typingTimers.current.forEach(t => clearTimeout(t))
     typingTimers.current.clear()
+    imageChunkBuffer.current.forEach(entry => clearTimeout(entry.timer))
+    imageChunkBuffer.current.clear()
+    imageObjectUrls.current.forEach(url => URL.revokeObjectURL(url))
+    imageObjectUrls.current.clear()
     stopDecoyEngine()
     leaveRoom()
     resetPeerColors()
@@ -479,6 +561,10 @@ export function useRoom() {
     deadDropReceipts.current = []
     typingTimers.current.forEach(t => clearTimeout(t))
     typingTimers.current.clear()
+    imageChunkBuffer.current.forEach(entry => clearTimeout(entry.timer))
+    imageChunkBuffer.current.clear()
+    imageObjectUrls.current.forEach(url => URL.revokeObjectURL(url))
+    imageObjectUrls.current.clear()
 
     // Fire NIP-09 deletion for ALL drop events - cross-session capable.
     // Signing key zeroed in finally() regardless of success or failure.
@@ -517,6 +603,10 @@ export function useRoom() {
     sessionRef.current?.signingKey.fill(0)
     typingTimers.current.forEach(t => clearTimeout(t))
     typingTimers.current.clear()
+    imageChunkBuffer.current.forEach(entry => clearTimeout(entry.timer))
+    imageChunkBuffer.current.clear()
+    imageObjectUrls.current.forEach(url => URL.revokeObjectURL(url))
+    imageObjectUrls.current.clear()
     stopDecoyEngine()
     leaveRoom()
     resetPeerColors()
@@ -633,5 +723,6 @@ export function useRoom() {
     pendingDeadMans,
     armDeadMan,
     cancelDeadMan,
+    sendImage,
   }
 }

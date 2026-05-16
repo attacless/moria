@@ -41,6 +41,7 @@ export default function App() {
     pendingDeadMans,
     armDeadMan,
     cancelDeadMan,
+    sendImage,
   } = useRoom()
 
   const [stegoMode, setStegoMode] = useState(false)
@@ -146,6 +147,7 @@ export default function App() {
               pendingDeadMans={pendingDeadMans}
               onArmDeadMan={armDeadMan}
               onCancelDeadMan={cancelDeadMan}
+              onSendImage={sendImage}
             />
           )}
 
