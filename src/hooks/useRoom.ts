@@ -141,6 +141,7 @@ export function useRoom() {
       timestamp:  d.timestamp * 1000,     // store as Unix ms for consistency
       activateAt: d.activateAfter!,
       body:       d.body,
+      ...(d.tokenHash ? { tokenHash: d.tokenHash } : {}),
     })))
 
     // All other drops (TEXT, activated DEADMAN, etc.) go through the normal pipeline.
@@ -389,7 +390,7 @@ export function useRoom() {
 
   // ── Dead man's switch ────────────────────────────────────────────────────
 
-  const armDeadMan = useCallback(async (body: string, activateSeconds: number): Promise<boolean> => {
+  const armDeadMan = useCallback(async (body: string, activateSeconds: number, tokenHash: string): Promise<boolean> => {
     const keys = sessionRef.current
     if (!keys) return false
 
@@ -410,6 +411,7 @@ export function useRoom() {
       ttlSeconds,
       undefined,
       activateAfter,
+      tokenHash,
     )
 
     if (result.success) {

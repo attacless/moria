@@ -75,7 +75,8 @@ export async function publishDeadDrop(
   signingKey:     Uint8Array,
   ttlSeconds:     number = DROP_TTL_S,
   replyTo?:       ReplyTo,
-  activateAfter?: number
+  activateAfter?: number,
+  tokenHash?:     string
 ): Promise<PublishResult> {
   // Privacy envelopes applied to dead drop publishing:
   // 1. created_at jittered backward 0-120s (breaks relay-level timestamp correlation)
@@ -96,6 +97,7 @@ export async function publishDeadDrop(
     body,
     ...(replyTo       ? { replyTo }       : {}),
     ...(activateAfter ? { activateAfter } : {}),
+    ...(tokenHash     ? { tokenHash }     : {}),
   }
 
   const encrypted = await encryptMessage(wire, roomKey)
@@ -309,7 +311,7 @@ export async function publishPoisonEvent(
 export async function fetchDeadDrops(
   dropId:  string,
   roomKey: Uint8Array
-): Promise<{ alias: Alias; timestamp: number; body: string; type: MessageType; activateAfter?: number; eventId: string }[]> {
+): Promise<{ alias: Alias; timestamp: number; body: string; type: MessageType; activateAfter?: number; tokenHash?: string; eventId: string }[]> {
   const nowMs = Date.now()
   if (nowMs - lastFetchTime < FETCH_RATE_LIMIT_MS) {
     console.warn('[deadDrop] fetch rate limited - too soon after last fetch')
@@ -319,7 +321,7 @@ export async function fetchDeadDrops(
 
   const now    = Math.floor(nowMs / 1000)
   const seen   = new Set<string>()
-  const results: { alias: Alias; timestamp: number; body: string; type: MessageType; activateAfter?: number; eventId: string }[] = []
+  const results: { alias: Alias; timestamp: number; body: string; type: MessageType; activateAfter?: number; tokenHash?: string; eventId: string }[] = []
 
   const liveRelays = await getLiveRelays(4)
 
@@ -351,6 +353,7 @@ export async function fetchDeadDrops(
         type:      decrypted.type,
         eventId:   event.id,
         ...(decrypted.activateAfter ? { activateAfter: decrypted.activateAfter } : {}),
+        ...(decrypted.tokenHash     ? { tokenHash:     decrypted.tokenHash }     : {}),
       })
     } catch {
       // malformed - skip

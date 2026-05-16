@@ -1,8 +1,8 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
 import { MessageList } from './MessageList'
 import { InputBar }    from './InputBar'
 import { webRTCAvailable } from '@/capabilities'
 import { getPeerColor } from '@/utils/peerColors'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DisplayMessage, ReplyTo, Alias, PendingDeadMan } from '@/types'
 
 const DEADMAN_TIMER_OPTIONS = [
@@ -45,7 +45,7 @@ interface ChatRoomProps {
   onTyping?:            () => void
   typingAliases?:       Alias[]
   pendingDeadMans?:     PendingDeadMan[]
-  onArmDeadMan?:        (body: string, activateSeconds: number) => Promise<boolean>
+  onArmDeadMan?:        (body: string, activateSeconds: number, tokenHash: string) => Promise<boolean>
   onCancelDeadMan?:     (eventId: string) => Promise<void>
 }
 
@@ -77,12 +77,21 @@ export function ChatRoom({
   const [clipboardFlash, setClipboardFlash] = useState(false)
 
   // ── Dead man's switch modal ─────────────────────────────────────────────
-  const [showDeadManModal, setShowDeadManModal]   = useState(false)
-  const [deadManTimerSecs, setDeadManTimerSecs]   = useState(DEADMAN_TIMER_OPTIONS[0]!.seconds)
-  const [deadManBody, setDeadManBody]             = useState('')
-  const [deadManArming, setDeadManArming]         = useState(false)
-  const [deadManArmedFlash, setDeadManArmedFlash] = useState(false)
-  // Tick state for countdown re-renders
+  const [showDeadManModal, setShowDeadManModal] = useState(false)
+  const [deadManTimerSecs, setDeadManTimerSecs] = useState(DEADMAN_TIMER_OPTIONS[0]!.seconds)
+  const [deadManBody, setDeadManBody]           = useState('')
+  const [deadManArming, setDeadManArming]       = useState(false)
+
+  // Token confirmation modal (shown after successful ARM)
+  const [armedToken, setArmedToken]             = useState<string | null>(null)
+
+  // Per-item ENTER CODE state (keyed by eventId)
+  // Key present = entering mode active; absent = idle
+  const [codeInputs, setCodeInputs]   = useState<Record<string, string>>({})
+  const [codeErrors, setCodeErrors]   = useState<Record<string, boolean>>({})
+  const [disarmedFlash, setDisarmedFlash] = useState(false)
+
+  // Tick for countdown re-renders
   const [_tick, setTick] = useState(0)
 
   useEffect(() => {
@@ -100,14 +109,61 @@ export function ChatRoom({
   const handleArmDeadMan = useCallback(async () => {
     if (!deadManBody.trim() || !onArmDeadMan) return
     setDeadManArming(true)
-    const ok = await onArmDeadMan(deadManBody.trim(), deadManTimerSecs)
+
+    // Generate 6-char alphanumeric cancellation token
+    const token = Math.random().toString(36).substring(2, 8).toUpperCase()
+
+    // Hash the token with SHA-256 - only the hash goes into the encrypted payload
+    const encoder    = new TextEncoder()
+    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(token))
+    const tokenHash  = Array.from(new Uint8Array(hashBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')
+
+    const ok = await onArmDeadMan(deadManBody.trim(), deadManTimerSecs, tokenHash)
     setDeadManArming(false)
     setShowDeadManModal(false)
     if (ok) {
-      setDeadManArmedFlash(true)
-      setTimeout(() => setDeadManArmedFlash(false), 3_000)
+      setArmedToken(token)  // show token confirmation modal
     }
   }, [deadManBody, deadManTimerSecs, onArmDeadMan])
+
+  // ── ENTER CODE per-item helpers ─────────────────────────────────────────
+
+  function startEntering(eventId: string) {
+    setCodeInputs(prev => ({ ...prev, [eventId]: '' }))
+  }
+
+  function cancelEntering(eventId: string) {
+    setCodeInputs(prev => { const next = { ...prev }; delete next[eventId]; return next })
+    setCodeErrors(prev => { const next = { ...prev }; delete next[eventId]; return next })
+  }
+
+  const handleVerifyCode = useCallback(async (dm: PendingDeadMan) => {
+    const entered = (codeInputs[dm.eventId] ?? '').toUpperCase().trim()
+    if (!entered || !dm.tokenHash) return
+
+    const encoder    = new TextEncoder()
+    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(entered))
+    const hash       = Array.from(new Uint8Array(hashBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')
+
+    if (hash === dm.tokenHash) {
+      // Valid code - cancel the switch
+      await onCancelDeadMan?.(dm.eventId)
+      setCodeInputs(prev => { const next = { ...prev }; delete next[dm.eventId]; return next })
+      setDisarmedFlash(true)
+      setTimeout(() => setDisarmedFlash(false), 3_000)
+    } else {
+      // Invalid code - show error, revert to idle
+      setCodeInputs(prev => { const next = { ...prev }; delete next[dm.eventId]; return next })
+      setCodeErrors(prev => ({ ...prev, [dm.eventId]: true }))
+      setTimeout(() => {
+        setCodeErrors(prev => { const next = { ...prev }; delete next[dm.eventId]; return next })
+      }, 2_000)
+    }
+  }, [codeInputs, onCancelDeadMan])
 
   // ── Unread tab badge ────────────────────────────────────────────────────
   const seenIdsRef = useRef<Set<string>>(new Set())
@@ -301,28 +357,53 @@ export function ChatRoom({
       {/* Pending dead man switches - armed but not yet activated */}
       {pendingDeadMans.length > 0 && (
         <div className="pending-deadmans">
-          {pendingDeadMans.map(dm => (
-            <div key={dm.eventId} className="pending-deadman">
-              <div className="pending-deadman-top">
-                <span className="pending-deadman-label">DEAD MAN ARMED</span>
-                <span className="pending-deadman-countdown">{formatCountdown(dm.activateAt)}</span>
-                <button
-                  className="pending-deadman-cancel"
-                  onClick={() => onCancelDeadMan?.(dm.eventId)}
-                  type="button"
-                >
-                  CANCEL
-                </button>
+          {pendingDeadMans.map(dm => {
+            const isEntering = dm.eventId in codeInputs
+            const hasError   = !!codeErrors[dm.eventId]
+            return (
+              <div key={dm.eventId} className="pending-deadman">
+                <div className="pending-deadman-top">
+                  <span className="pending-deadman-label">DEAD MAN'S SWITCH ARMED</span>
+                  <span className="pending-deadman-countdown">{formatCountdown(dm.activateAt)}</span>
+                  {isEntering ? (
+                    <div className="deadman-code-row">
+                      <input
+                        className="deadman-code-input"
+                        value={codeInputs[dm.eventId] ?? ''}
+                        onChange={e => setCodeInputs(prev => ({ ...prev, [dm.eventId]: e.target.value.toUpperCase().slice(0, 6) }))}
+                        onKeyDown={e => { if (e.key === 'Enter') handleVerifyCode(dm) }}
+                        placeholder="XXXXXX"
+                        maxLength={6}
+                        autoFocus
+                        spellCheck={false}
+                        autoComplete="off"
+                      />
+                      <button className="pending-deadman-verify" onClick={() => handleVerifyCode(dm)} type="button">
+                        VERIFY
+                      </button>
+                      <button className="pending-deadman-dismiss" onClick={() => cancelEntering(dm.eventId)} type="button">
+                        X
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      className={`pending-deadman-enter${hasError ? ' error' : ''}`}
+                      onClick={() => startEntering(dm.eventId)}
+                      type="button"
+                    >
+                      {hasError ? 'INVALID CODE' : 'ENTER CODE'}
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="pending-deadman-body">{dm.body}</div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
-      {/* Dead man armed flash */}
-      {deadManArmedFlash && (
-        <div className="deadman-armed-flash">dead man's switch armed</div>
+      {/* Disarmed flash */}
+      {disarmedFlash && (
+        <div className="deadman-armed-flash">switch disarmed</div>
       )}
 
       {/* Input */}
@@ -345,6 +426,27 @@ export function ChatRoom({
         <span className="panic-hint">panic esc × 3 · decoy shift × 5</span>
         <span className="session-hint">{alias} · session expires on disconnect</span>
       </div>
+
+      {/* Token confirmation modal - shown after successful ARM */}
+      {armedToken && (
+        <div className="modal-backdrop">
+          <div className="warn-dialog deadman-dialog">
+            <div className="warn-title">SWITCH ARMED</div>
+            <div className="warn-body" style={{ textAlign: 'center' }}>Your cancellation code</div>
+            <div className="deadman-token-display">{armedToken}</div>
+            <div className="deadman-token-hint">Save this code. You will not see it again.</div>
+            <div className="warn-actions">
+              <button
+                className="warn-btn primary"
+                onClick={() => setArmedToken(null)}
+                type="button"
+              >
+                I SAVED IT
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Dead man's switch modal */}
       {showDeadManModal && (

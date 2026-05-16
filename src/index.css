@@ -1391,15 +1391,7 @@ input, textarea { font-family: var(--font-body); }
   color:         rgba(255, 255, 255, 0.5);
 }
 
-.deadman-dialog .warn-btn.primary {
-  background:    rgba(255, 255, 255, 0.08);
-  border-color:  rgba(255, 255, 255, 0.15);
-  color:         rgba(255, 255, 255, 0.9);
-}
-.deadman-dialog .warn-btn.primary:hover {
-  background:    rgba(255, 255, 255, 0.12);
-  border-color:  rgba(255, 255, 255, 0.25);
-}
+
 
 /* Label in revealed dead drop body */
 .deadman-label {
@@ -1450,38 +1442,113 @@ input, textarea { font-family: var(--font-body); }
   flex:                 1;
 }
 
-.pending-deadman-cancel {
-  font-family:   var(--font-mono);
-  font-size:     0.58rem;
+/* ENTER CODE button (idle state) */
+.pending-deadman-enter {
+  font-family:    var(--font-mono);
+  font-size:      0.58rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color:         rgba(230, 0, 0, 0.6);
-  background:    none;
-  border:        1px solid var(--red-border);
-  border-radius: var(--radius);
-  padding:       5px 10px;
-  cursor:        pointer;
-  transition:    all 0.2s;
-  flex-shrink:   0;
-  white-space:   nowrap;
+  color:          rgba(255, 255, 255, 0.3);
+  background:     none;
+  border:         1px solid rgba(255, 255, 255, 0.12);
+  border-radius:  var(--radius);
+  padding:        5px 10px;
+  cursor:         pointer;
+  transition:     all 0.2s;
+  flex-shrink:    0;
+  white-space:    nowrap;
 }
-.pending-deadman-cancel:hover {
-  border-color:  var(--red);
-  color:         #fff;
-  background:    var(--red);
+.pending-deadman-enter:hover {
+  color:        rgba(255, 255, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.25);
 }
-
-.pending-deadman-body {
-  font-family:   var(--font-body);
-  font-size:     12px;
-  font-weight:   300;
-  color:         rgba(255, 255, 255, 0.5);
-  white-space:   nowrap;
-  overflow:      hidden;
-  text-overflow: ellipsis;
+.pending-deadman-enter.error {
+  color:        var(--red);
+  border-color: var(--red-border);
 }
 
-/* "dead man's switch armed" success flash */
+/* Inline code entry row */
+.deadman-code-row {
+  display:     flex;
+  align-items: center;
+  gap:         5px;
+  flex-shrink: 0;
+}
+
+.deadman-code-input {
+  font-family:    var(--font-mono);
+  font-size:      13px;
+  width:          80px;
+  padding:        4px 8px;
+  background:     var(--surface);
+  border:         1px solid var(--border);
+  border-radius:  var(--radius);
+  color:          rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-align:     center;
+  outline:        none;
+  transition:     border-color 0.2s;
+}
+.deadman-code-input:focus        { border-color: var(--border-focus); }
+.deadman-code-input::placeholder { color: rgba(255, 255, 255, 0.2); letter-spacing: 1px; }
+
+/* VERIFY button */
+.pending-deadman-verify {
+  font-family:    var(--font-mono);
+  font-size:      0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color:          rgba(255, 255, 255, 0.55);
+  background:     none;
+  border:         1px solid rgba(255, 255, 255, 0.18);
+  border-radius:  var(--radius);
+  padding:        5px 10px;
+  cursor:         pointer;
+  transition:     all 0.2s;
+  white-space:    nowrap;
+}
+.pending-deadman-verify:hover {
+  color:        rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* X dismiss button */
+.pending-deadman-dismiss {
+  font-family: var(--font-mono);
+  font-size:   11px;
+  color:       rgba(255, 255, 255, 0.25);
+  background:  none;
+  border:      none;
+  padding:     4px 5px;
+  cursor:      pointer;
+  transition:  color 0.15s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.pending-deadman-dismiss:hover { color: rgba(255, 255, 255, 0.5); }
+
+/* Token display in confirmation modal */
+.deadman-token-display {
+  font-family:         var(--font-mono);
+  font-size:           24px;
+  letter-spacing:      6px;
+  color:               rgba(255, 255, 255, 0.9);
+  text-align:          center;
+  user-select:         all;
+  -webkit-user-select: all;
+  text-indent:         6px; /* optical compensation for letter-spacing */
+}
+
+.deadman-token-hint {
+  font-family: var(--font-body);
+  font-size:   12px;
+  font-weight: 300;
+  color:       rgba(255, 255, 255, 0.3);
+  text-align:  center;
+}
+
+/* "armed" / "disarmed" status flash */
 .deadman-armed-flash {
   font-family:   var(--font-mono);
   font-size:     9px;

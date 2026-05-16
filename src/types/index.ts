@@ -35,6 +35,7 @@ export interface WireMessage {
   body:           string
   replyTo?:       ReplyTo
   activateAfter?: number                  // Unix seconds - DEADMAN only; client enforces
+  tokenHash?:     string                  // SHA-256 hex of cancellation token - DEADMAN only
 }
 
 export interface DisplayMessage {
@@ -56,9 +57,10 @@ export interface DisplayMessage {
 export interface PendingDeadMan {
   eventId:    string
   alias:      Alias
-  timestamp:  number   // Unix ms when published
-  activateAt: number   // Unix seconds when it activates
+  timestamp:  number    // Unix ms when published
+  activateAt: number    // Unix seconds when it activates
   body:       string
+  tokenHash?: string    // SHA-256 hex of cancellation token
 }
 
 export type AppScreen = 'entry' | 'chat'
