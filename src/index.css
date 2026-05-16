@@ -1278,6 +1278,228 @@ input, textarea { font-family: var(--font-body); }
 .warn-btn.ghost:hover { border-color: var(--border-focus); color: var(--text-secondary); }
 
 /* ═══════════════════════════════════
+   DEAD MAN'S SWITCH
+   ═══════════════════════════════════ */
+
+/* Input bar button */
+.deadman-btn {
+  font-family:     var(--font-mono);
+  font-size:       9px;
+  letter-spacing:  1px;
+  text-transform:  uppercase;
+  color:           rgba(255, 255, 255, 0.35);
+  background:      none;
+  border:          1px solid rgba(255, 255, 255, 0.12);
+  border-radius:   var(--radius);
+  padding:         8px 10px;
+  cursor:          pointer;
+  transition:      color 0.15s, border-color 0.15s;
+  white-space:     nowrap;
+  flex-shrink:     0;
+}
+.deadman-btn:hover {
+  color:         rgba(255, 255, 255, 0.6);
+  border-color:  rgba(255, 255, 255, 0.25);
+}
+
+/* Modal overrides */
+.deadman-dialog {
+  max-width:        420px;
+  width:            90%;
+  text-align:       left;
+  background:       rgba(10, 10, 10, 0.95);
+  border:           none;
+  box-shadow:       0 8px 32px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.06);
+  border-radius:    12px;
+  padding:          32px;
+  display:          flex;
+  flex-direction:   column;
+  gap:              20px;
+}
+
+.deadman-dialog .warn-title {
+  text-align:       center;
+  font-size:        13px;
+  letter-spacing:   3px;
+  color:            rgba(255, 255, 255, 0.9);
+  margin-bottom:    0;
+}
+
+.deadman-dialog .warn-body {
+  font-size:        13px;
+  color:            rgba(255, 255, 255, 0.4);
+  line-height:      1.6;
+  margin-bottom:    0;
+}
+
+/* Timer selector row inside modal */
+.deadman-timer-selector {
+  display:          flex;
+  gap:              4px;
+  flex-wrap:        wrap;
+}
+
+.deadman-timer-opt {
+  font-family:      var(--font-mono);
+  font-size:        9px;
+  letter-spacing:   1px;
+  text-transform:   uppercase;
+  color:            rgba(255, 255, 255, 0.3);
+  background:       none;
+  border:           1px solid rgba(255, 255, 255, 0.1);
+  border-radius:    2px;
+  padding:          6px 8px;
+  cursor:           pointer;
+  transition:       color 0.15s, border-color 0.15s;
+}
+.deadman-timer-opt:hover  { color: rgba(255, 255, 255, 0.55); border-color: rgba(255, 255, 255, 0.25); }
+.deadman-timer-opt.active { color: rgba(255, 255, 255, 0.9);  border-color: rgba(255, 255, 255, 0.45); }
+
+/* Message textarea */
+.deadman-textarea {
+  width:            100%;
+  box-sizing:       border-box;
+  background:       rgba(255, 255, 255, 0.03);
+  border:           1px solid rgba(255, 255, 255, 0.06);
+  border-radius:    6px;
+  color:            rgba(255, 255, 255, 0.9);
+  font-family:      var(--font-body);
+  font-size:        14px;
+  font-weight:      300;
+  line-height:      1.5;
+  padding:          12px;
+  resize:           none;
+  outline:          none;
+  transition:       border-color 0.2s;
+}
+.deadman-textarea:focus       { border-color: rgba(255, 255, 255, 0.18); }
+.deadman-textarea::placeholder { color: rgba(255, 255, 255, 0.2); }
+
+/* Modal button overrides */
+.deadman-dialog .warn-actions {
+  margin-bottom: 0;
+}
+
+.deadman-dialog .warn-btn.ghost {
+  background:    transparent;
+  border-color:  rgba(255, 255, 255, 0.06);
+  color:         rgba(255, 255, 255, 0.3);
+}
+.deadman-dialog .warn-btn.ghost:hover {
+  border-color:  rgba(255, 255, 255, 0.15);
+  color:         rgba(255, 255, 255, 0.5);
+}
+
+.deadman-dialog .warn-btn.primary {
+  background:    rgba(255, 255, 255, 0.08);
+  border-color:  rgba(255, 255, 255, 0.15);
+  color:         rgba(255, 255, 255, 0.9);
+}
+.deadman-dialog .warn-btn.primary:hover {
+  background:    rgba(255, 255, 255, 0.12);
+  border-color:  rgba(255, 255, 255, 0.25);
+}
+
+/* Label in revealed dead drop body */
+.deadman-label {
+  font-family:   var(--font-mono);
+  font-size:     9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color:         rgba(255, 255, 255, 0.3);
+  margin-bottom: 6px;
+  user-select:   none;
+}
+
+/* Pending switches strip */
+.pending-deadmans {
+  flex-shrink:     0;
+  display:         flex;
+  flex-direction:  column;
+  gap:             4px;
+  padding:         4px 0;
+}
+
+.pending-deadman {
+  padding:         8px 16px;
+}
+
+.pending-deadman-top {
+  display:         flex;
+  align-items:     center;
+  gap:             8px;
+  margin-bottom:   3px;
+}
+
+.pending-deadman-label {
+  font-family:     var(--font-mono);
+  font-size:       9px;
+  letter-spacing:  2px;
+  text-transform:  uppercase;
+  color:           rgba(255, 255, 255, 0.25);
+  user-select:     none;
+  flex-shrink:     0;
+}
+
+.pending-deadman-countdown {
+  font-family:          var(--font-mono);
+  font-size:            10px;
+  color:                rgba(255, 255, 255, 0.4);
+  font-variant-numeric: tabular-nums;
+  flex:                 1;
+}
+
+.pending-deadman-cancel {
+  font-family:   var(--font-mono);
+  font-size:     0.58rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color:         rgba(230, 0, 0, 0.6);
+  background:    none;
+  border:        1px solid var(--red-border);
+  border-radius: var(--radius);
+  padding:       5px 10px;
+  cursor:        pointer;
+  transition:    all 0.2s;
+  flex-shrink:   0;
+  white-space:   nowrap;
+}
+.pending-deadman-cancel:hover {
+  border-color:  var(--red);
+  color:         #fff;
+  background:    var(--red);
+}
+
+.pending-deadman-body {
+  font-family:   var(--font-body);
+  font-size:     12px;
+  font-weight:   300;
+  color:         rgba(255, 255, 255, 0.5);
+  white-space:   nowrap;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+}
+
+/* "dead man's switch armed" success flash */
+.deadman-armed-flash {
+  font-family:   var(--font-mono);
+  font-size:     9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color:         rgba(255, 255, 255, 0.5);
+  text-align:    center;
+  padding:       7px 16px;
+  flex-shrink:   0;
+  animation:     fadeOut 3s ease forwards;
+}
+
+@keyframes fadeOut {
+  0%   { opacity: 1; }
+  60%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ═══════════════════════════════════
    STEGO MODE
    ═══════════════════════════════════ */
 .stego-mode {
@@ -1478,5 +1700,7 @@ input, textarea { font-family: var(--font-body); }
 
   .stego-body   { padding: 24px 20px; }
   .stego-input-area { padding: 0 20px 24px; }
+
+  .deadman-dialog { padding: 24px; }
 }
 

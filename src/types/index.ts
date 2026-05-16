@@ -20,7 +20,7 @@ export interface PeerSession {
   sessionKey: Uint8Array             // ECDH-derived symmetric key for this peer
 }
 
-export type MessageType = 'TEXT' | 'DECOY' | 'SYSTEM' | 'PUBKEY_HANDSHAKE' | 'TERMINATE' | 'DURESS' | 'TYPING'
+export type MessageType = 'TEXT' | 'DECOY' | 'SYSTEM' | 'PUBKEY_HANDSHAKE' | 'TERMINATE' | 'DURESS' | 'TYPING' | 'DEADMAN'
 
 export interface ReplyTo {
   id:    string
@@ -29,11 +29,12 @@ export interface ReplyTo {
 }
 
 export interface WireMessage {
-  type:      MessageType
-  alias:     Alias
-  timestamp: number                  // Rounded to nearest 60s before encryption
-  body:      string
-  replyTo?:  ReplyTo
+  type:           MessageType
+  alias:          Alias
+  timestamp:      number                  // Rounded to nearest 60s before encryption
+  body:           string
+  replyTo?:       ReplyTo
+  activateAfter?: number                  // Unix seconds - DEADMAN only; client enforces
 }
 
 export interface DisplayMessage {
@@ -44,10 +45,20 @@ export interface DisplayMessage {
   isMine:           boolean
   burnAt?:          number                // Unix ms when message self-destructs
   isDeadDrop?:      boolean              // fetched from Nostr relay on join
+  isDeadMan?:       boolean              // activated DEADMAN relay event
+  activateAfter?:   number              // Unix seconds - for pending DEADMAN (unused in display msgs)
   confirmed?:       boolean              // true after RECEIVED pressed or peer joins
   queuedExpiresAt?: number              // unix ms when relay event expires (sender's own queued msgs only)
   queuedStatus?:    'sending' | 'queued' | 'failed'
   replyTo?:         ReplyTo
+}
+
+export interface PendingDeadMan {
+  eventId:    string
+  alias:      Alias
+  timestamp:  number   // Unix ms when published
+  activateAt: number   // Unix seconds when it activates
+  body:       string
 }
 
 export type AppScreen = 'entry' | 'chat'

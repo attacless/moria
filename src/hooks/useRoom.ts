@@ -13,7 +13,7 @@ import {
 } from '@transport/room'
 import { startDecoyEngine, stopDecoyEngine } from '@transport/decoy'
 import { webRTCAvailable } from '@/capabilities'
-import { publishDeadDrop, fetchDeadDrops, deleteAllDeadDrops, publishPoisonEvent } from '@transport/deadDrop'
+import { publishDeadDrop, fetchDeadDrops, deleteDeadDrops, deleteAllDeadDrops, publishPoisonEvent } from '@transport/deadDrop'
 import { resetPeerColors } from '@/utils/peerColors'
 import type { DeadDropReceipt } from '@transport/deadDrop'
 import type { PublishResult } from '@transport/deadDrop'
@@ -21,7 +21,7 @@ import { roundTimestamp } from '@crypto/chacha20'
 import { mountSecurityMeasures, unmountSecurityMeasures, disableCopyPrevention, enableCopyPrevention } from '@/security'
 import { useMessages } from './useMessages'
 import { useAlias } from './useAlias'
-import type { SessionKeys, DisplayMessage, PeerId, AppScreen, Alias, ReplyTo } from '@/types'
+import type { SessionKeys, DisplayMessage, PendingDeadMan, PeerId, AppScreen, Alias, ReplyTo } from '@/types'
 
 // ── Duress helpers ────────────────────────────────────────────────────────────
 
@@ -89,8 +89,9 @@ export function useRoom() {
   const [dropError, setDropError]           = useState<string | null>(null)
   const [rateLimited, setRateLimited]       = useState(false)
   const [roomFull, setRoomFull]             = useState(false)
-  const [clipboardEnabled, setClipboardEnabled] = useState(false)
-  const [duressDetected, setDuressDetected]     = useState(false)
+  const [clipboardEnabled, setClipboardEnabled]   = useState(false)
+  const [duressDetected, setDuressDetected]       = useState(false)
+  const [pendingDeadMans, setPendingDeadMans]     = useState<PendingDeadMan[]>([])
   const lastSentRef                         = useRef<number>(0)
   const lastTypingRef                       = useRef<number>(0)
 
@@ -122,13 +123,30 @@ export function useRoom() {
     const drops = await fetchDeadDrops(keys.dropId, keys.roomKey)
     if (drops.length === 0) return
 
+    const nowSecs = Math.floor(Date.now() / 1000)
+
     const hasPoison = drops.some(d => d.type === 'DURESS')
     if (hasPoison) setDuressDetected(true)
 
-    // Filter against the persistent seen set - not the live message list.
-    // Using the live list would re-display burned messages on the next poll.
+    // Separate pending DEADMAN (not yet activated) from everything else.
+    // Pending switches are shown in a dedicated section with countdown + CANCEL.
+    // They are NOT added to seenDropIds so they keep appearing each poll until
+    // they either activate (become normal messages) or are cancelled.
+    const pendingDrops = drops.filter(
+      d => d.type === 'DEADMAN' && d.activateAfter && d.activateAfter > nowSecs
+    )
+    setPendingDeadMans(pendingDrops.map(d => ({
+      eventId:    d.eventId,
+      alias:      d.alias,
+      timestamp:  d.timestamp * 1000,     // store as Unix ms for consistency
+      activateAt: d.activateAfter!,
+      body:       d.body,
+    })))
+
+    // All other drops (TEXT, activated DEADMAN, etc.) go through the normal pipeline.
     const newDrops = drops
       .filter(d => d.type !== 'DURESS')
+      .filter(d => !(d.type === 'DEADMAN' && d.activateAfter && d.activateAfter > nowSecs))
       .filter(d => !seenDropIds.current.has(`${d.alias}:${d.timestamp}:${d.body}`))
 
     if (newDrops.length === 0) return
@@ -144,6 +162,7 @@ export function useRoom() {
       isMine:     false,
       isDeadDrop: true,
       confirmed:  false,
+      ...(d.type === 'DEADMAN' ? { isDeadMan: true } : {}),
     }))
 
     addMessages(dropMessages)
@@ -368,6 +387,48 @@ export function useRoom() {
     }
   }, [alias, addMessage, updateMessageStatus])
 
+  // ── Dead man's switch ────────────────────────────────────────────────────
+
+  const armDeadMan = useCallback(async (body: string, activateSeconds: number): Promise<boolean> => {
+    const keys = sessionRef.current
+    if (!keys) return false
+
+    const activateAfter  = Math.floor(Date.now() / 1000) + activateSeconds
+    // TTL: hold the relay event for the full activation window plus 24h buffer
+    // so the recipient can still fetch it after it activates.
+    const ttlSeconds     = activateSeconds + 86_400
+
+    // Capture the timestamp before the async call so seenDropIds uses the same bucket.
+    const publishedTimestamp = roundTimestamp(Date.now())
+
+    const result = await publishDeadDrop(
+      body,
+      alias,
+      keys.dropId,
+      keys.roomKey,
+      keys.signingKey,
+      ttlSeconds,
+      undefined,
+      activateAfter,
+    )
+
+    if (result.success) {
+      // Prevent sender from seeing their own switch as a received activated message.
+      seenDropIds.current.add(`${alias}:${publishedTimestamp}:${body}`)
+    }
+
+    return result.success
+  }, [alias])
+
+  const cancelDeadMan = useCallback(async (eventId: string): Promise<void> => {
+    const keys = sessionRef.current
+    if (!keys) return
+    try {
+      await deleteDeadDrops([{ eventId, expiresAt: 0 }], keys.dropId, keys.signingKey)
+    } catch {}
+    setPendingDeadMans(prev => prev.filter(d => d.eventId !== eventId))
+  }, [])
+
   // ── Leave ────────────────────────────────────────────────────────────────
 
   const leave = useCallback(() => {
@@ -388,6 +449,7 @@ export function useRoom() {
     setClipboardEnabled(false)
     setDuressDetected(false)
     setTypingAliases([])
+    setPendingDeadMans([])
     enableCopyPrevention()
     sessionRef.current = null
     unmountSecurityMeasures()
@@ -423,6 +485,7 @@ export function useRoom() {
     setClipboardEnabled(false)
     setDuressDetected(false)
     setTypingAliases([])
+    setPendingDeadMans([])
     enableCopyPrevention()
     sessionRef.current = null
     unmountSecurityMeasures()
@@ -450,6 +513,7 @@ export function useRoom() {
     setClipboardEnabled(false)
     setDuressDetected(false)
     setTypingAliases([])
+    setPendingDeadMans([])
     sessionRef.current = null
     // rotateAlias() is intentionally omitted here. document.open() in usePanic
     // destroys the React tree before any state update can flush. Alias
@@ -552,5 +616,8 @@ export function useRoom() {
     duressDetected,
     sendTyping,
     typingAliases,
+    pendingDeadMans,
+    armDeadMan,
+    cancelDeadMan,
   }
 }

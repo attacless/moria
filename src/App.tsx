@@ -38,6 +38,9 @@ export default function App() {
     duressDetected,
     sendTyping,
     typingAliases,
+    pendingDeadMans,
+    armDeadMan,
+    cancelDeadMan,
   } = useRoom()
 
   const [stegoMode, setStegoMode] = useState(false)
@@ -140,6 +143,9 @@ export default function App() {
               duressDetected={duressDetected}
               onTyping={sendTyping}
               typingAliases={typingAliases}
+              pendingDeadMans={pendingDeadMans}
+              onArmDeadMan={armDeadMan}
+              onCancelDeadMan={cancelDeadMan}
             />
           )}
 

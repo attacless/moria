@@ -142,6 +142,9 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
               </div>
               {isOpen && (
                 <div className="dead-drop-body">
+                  {msg.isDeadMan && (
+                    <div className="deadman-label">DEAD MAN'S SWITCH</div>
+                  )}
                   <div className="msg-body">{msg.body}</div>
                 </div>
               )}

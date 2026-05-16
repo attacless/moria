@@ -68,13 +68,14 @@ export interface PublishResult {
 }
 
 export async function publishDeadDrop(
-  body:       string,
-  alias:      Alias,
-  dropId:     string,
-  roomKey:    Uint8Array,
-  signingKey: Uint8Array,
-  ttlSeconds: number = DROP_TTL_S,
-  replyTo?:   ReplyTo
+  body:           string,
+  alias:          Alias,
+  dropId:         string,
+  roomKey:        Uint8Array,
+  signingKey:     Uint8Array,
+  ttlSeconds:     number = DROP_TTL_S,
+  replyTo?:       ReplyTo,
+  activateAfter?: number
 ): Promise<PublishResult> {
   // Privacy envelopes applied to dead drop publishing:
   // 1. created_at jittered backward 0-120s (breaks relay-level timestamp correlation)
@@ -89,11 +90,12 @@ export async function publishDeadDrop(
   lastPublishTime = nowMs
 
   const wire: WireMessage = {
-    type:      'TEXT',
+    type:      activateAfter ? 'DEADMAN' : 'TEXT',
     alias,
     timestamp: roundTimestamp(Date.now()),
     body,
-    ...(replyTo ? { replyTo } : {}),
+    ...(replyTo       ? { replyTo }       : {}),
+    ...(activateAfter ? { activateAfter } : {}),
   }
 
   const encrypted = await encryptMessage(wire, roomKey)
@@ -307,7 +309,7 @@ export async function publishPoisonEvent(
 export async function fetchDeadDrops(
   dropId:  string,
   roomKey: Uint8Array
-): Promise<{ alias: Alias; timestamp: number; body: string; type: MessageType }[]> {
+): Promise<{ alias: Alias; timestamp: number; body: string; type: MessageType; activateAfter?: number; eventId: string }[]> {
   const nowMs = Date.now()
   if (nowMs - lastFetchTime < FETCH_RATE_LIMIT_MS) {
     console.warn('[deadDrop] fetch rate limited - too soon after last fetch')
@@ -317,7 +319,7 @@ export async function fetchDeadDrops(
 
   const now    = Math.floor(nowMs / 1000)
   const seen   = new Set<string>()
-  const results: { alias: Alias; timestamp: number; body: string; type: MessageType }[] = []
+  const results: { alias: Alias; timestamp: number; body: string; type: MessageType; activateAfter?: number; eventId: string }[] = []
 
   const liveRelays = await getLiveRelays(4)
 
@@ -347,6 +349,8 @@ export async function fetchDeadDrops(
         timestamp: decrypted.timestamp,
         body:      decrypted.body,
         type:      decrypted.type,
+        eventId:   event.id,
+        ...(decrypted.activateAfter ? { activateAfter: decrypted.activateAfter } : {}),
       })
     } catch {
       // malformed - skip

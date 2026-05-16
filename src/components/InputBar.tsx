@@ -13,19 +13,20 @@ const TTL_OPTIONS = [
 const DEFAULT_TTL = TTL_OPTIONS[TTL_OPTIONS.length - 1].seconds  // 24h
 
 interface InputBarProps {
-  onSend:          (body: string, ttlSeconds: number) => void
-  disabled:        boolean
-  placeholder?:    string
-  dropError?:      string | null | undefined
-  onClearError?:   (() => void) | undefined
-  rateLimited?:    boolean | undefined
-  hasPeers?:       boolean | undefined
-  replyTo?:        ReplyTo | null
-  onCancelReply?:  () => void
-  onTyping?:       () => void
+  onSend:           (body: string, ttlSeconds: number) => void
+  disabled:         boolean
+  placeholder?:     string
+  dropError?:       string | null | undefined
+  onClearError?:    (() => void) | undefined
+  rateLimited?:     boolean | undefined
+  hasPeers?:        boolean | undefined
+  replyTo?:         ReplyTo | null
+  onCancelReply?:   () => void
+  onTyping?:        () => void
+  onOpenDeadMan?:   () => void
 }
 
-export function InputBar({ onSend, disabled, placeholder, dropError, onClearError, rateLimited, hasPeers, replyTo, onCancelReply, onTyping }: InputBarProps) {
+export function InputBar({ onSend, disabled, placeholder, dropError, onClearError, rateLimited, hasPeers, replyTo, onCancelReply, onTyping, onOpenDeadMan }: InputBarProps) {
   const [value, setValue]               = useState('')
   const [mediaBlocked, setMediaBlocked] = useState(false)
   const [dragging, setDragging]         = useState(false)
@@ -139,6 +140,16 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
           onDragOver={handleDragOver}
           onDrop={handleDrop}
         />
+        {!hasPeers && onOpenDeadMan && (
+          <button
+            className="deadman-btn"
+            onClick={onOpenDeadMan}
+            type="button"
+            title="Schedule a message to send automatically after a delay"
+          >
+            DEAD MAN
+          </button>
+        )}
         <button
           className={`send-btn${rateLimited ? ' rate-limited' : hasContent && !disabled ? ' active' : ''}`}
           onClick={handleSend}

@@ -3,7 +3,26 @@ import { MessageList } from './MessageList'
 import { InputBar }    from './InputBar'
 import { webRTCAvailable } from '@/capabilities'
 import { getPeerColor } from '@/utils/peerColors'
-import type { DisplayMessage, ReplyTo, Alias } from '@/types'
+import type { DisplayMessage, ReplyTo, Alias, PendingDeadMan } from '@/types'
+
+const DEADMAN_TIMER_OPTIONS = [
+  { label: '1H',  seconds: 1  * 60 * 60 },
+  { label: '2H',  seconds: 2  * 60 * 60 },
+  { label: '6H',  seconds: 6  * 60 * 60 },
+  { label: '12H', seconds: 12 * 60 * 60 },
+  { label: '24H', seconds: 24 * 60 * 60 },
+  { label: '48H', seconds: 48 * 60 * 60 },
+]
+
+function formatCountdown(activateAtSecs: number): string {
+  const remaining = Math.max(0, activateAtSecs - Math.floor(Date.now() / 1000))
+  const h = Math.floor(remaining / 3600)
+  const m = Math.floor((remaining % 3600) / 60)
+  const s = remaining % 60
+  if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`
+  if (m > 0) return `${m}m ${String(s).padStart(2, '0')}s`
+  return `${s}s`
+}
 
 interface ChatRoomProps {
   roomId:               string
@@ -25,6 +44,9 @@ interface ChatRoomProps {
   duressDetected?:      boolean
   onTyping?:            () => void
   typingAliases?:       Alias[]
+  pendingDeadMans?:     PendingDeadMan[]
+  onArmDeadMan?:        (body: string, activateSeconds: number) => Promise<boolean>
+  onCancelDeadMan?:     (eventId: string) => Promise<void>
 }
 
 export function ChatRoom({
@@ -47,9 +69,45 @@ export function ChatRoom({
   duressDetected,
   onTyping,
   typingAliases = [],
+  pendingDeadMans = [],
+  onArmDeadMan,
+  onCancelDeadMan,
 }: ChatRoomProps) {
   const [terminating, setTerminating] = useState(false)
   const [clipboardFlash, setClipboardFlash] = useState(false)
+
+  // ── Dead man's switch modal ─────────────────────────────────────────────
+  const [showDeadManModal, setShowDeadManModal]   = useState(false)
+  const [deadManTimerSecs, setDeadManTimerSecs]   = useState(DEADMAN_TIMER_OPTIONS[0]!.seconds)
+  const [deadManBody, setDeadManBody]             = useState('')
+  const [deadManArming, setDeadManArming]         = useState(false)
+  const [deadManArmedFlash, setDeadManArmedFlash] = useState(false)
+  // Tick state for countdown re-renders
+  const [_tick, setTick] = useState(0)
+
+  useEffect(() => {
+    if (pendingDeadMans.length === 0) return
+    const interval = setInterval(() => setTick(t => t + 1), 1_000)
+    return () => clearInterval(interval)
+  }, [pendingDeadMans.length])
+
+  const openDeadManModal = useCallback(() => {
+    setDeadManBody('')
+    setDeadManTimerSecs(DEADMAN_TIMER_OPTIONS[0]!.seconds)
+    setShowDeadManModal(true)
+  }, [])
+
+  const handleArmDeadMan = useCallback(async () => {
+    if (!deadManBody.trim() || !onArmDeadMan) return
+    setDeadManArming(true)
+    const ok = await onArmDeadMan(deadManBody.trim(), deadManTimerSecs)
+    setDeadManArming(false)
+    setShowDeadManModal(false)
+    if (ok) {
+      setDeadManArmedFlash(true)
+      setTimeout(() => setDeadManArmedFlash(false), 3_000)
+    }
+  }, [deadManBody, deadManTimerSecs, onArmDeadMan])
 
   // ── Unread tab badge ────────────────────────────────────────────────────
   const seenIdsRef = useRef<Set<string>>(new Set())
@@ -240,6 +298,33 @@ export function ChatRoom({
         </div>
       )}
 
+      {/* Pending dead man switches - armed but not yet activated */}
+      {pendingDeadMans.length > 0 && (
+        <div className="pending-deadmans">
+          {pendingDeadMans.map(dm => (
+            <div key={dm.eventId} className="pending-deadman">
+              <div className="pending-deadman-top">
+                <span className="pending-deadman-label">DEAD MAN ARMED</span>
+                <span className="pending-deadman-countdown">{formatCountdown(dm.activateAt)}</span>
+                <button
+                  className="pending-deadman-cancel"
+                  onClick={() => onCancelDeadMan?.(dm.eventId)}
+                  type="button"
+                >
+                  CANCEL
+                </button>
+              </div>
+              <div className="pending-deadman-body">{dm.body}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Dead man armed flash */}
+      {deadManArmedFlash && (
+        <div className="deadman-armed-flash">dead man's switch armed</div>
+      )}
+
       {/* Input */}
       <InputBar
         onSend={handleSend}
@@ -252,6 +337,7 @@ export function ChatRoom({
         replyTo={replyTo}
         onCancelReply={handleCancelReply}
         onTyping={handleTyping}
+        {...(onArmDeadMan ? { onOpenDeadMan: openDeadManModal } : {})}
       />
 
       {/* Footer */}
@@ -259,6 +345,57 @@ export function ChatRoom({
         <span className="panic-hint">panic esc × 3 · decoy shift × 5</span>
         <span className="session-hint">{alias} · session expires on disconnect</span>
       </div>
+
+      {/* Dead man's switch modal */}
+      {showDeadManModal && (
+        <div className="modal-backdrop">
+          <div className="warn-dialog deadman-dialog">
+            <div className="warn-title">DEAD MAN'S SWITCH</div>
+            <div className="warn-body">
+              Write a message and set a delay. If no one cancels it before the timer expires, the message will appear automatically to anyone who opens this room.
+            </div>
+            <div className="deadman-timer-selector">
+              {DEADMAN_TIMER_OPTIONS.map(opt => (
+                <button
+                  key={opt.seconds}
+                  className={`deadman-timer-opt${deadManTimerSecs === opt.seconds ? ' active' : ''}`}
+                  onClick={() => setDeadManTimerSecs(opt.seconds)}
+                  type="button"
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <textarea
+              className="deadman-textarea"
+              value={deadManBody}
+              onChange={e => setDeadManBody(e.target.value)}
+              placeholder="message to send when the switch activates..."
+              rows={4}
+              maxLength={1800}
+              autoFocus
+            />
+            <div className="warn-actions">
+              <button
+                className="warn-btn ghost"
+                onClick={() => setShowDeadManModal(false)}
+                disabled={deadManArming}
+                type="button"
+              >
+                CANCEL
+              </button>
+              <button
+                className="warn-btn primary"
+                onClick={handleArmDeadMan}
+                disabled={!deadManBody.trim() || deadManArming}
+                type="button"
+              >
+                {deadManArming ? 'ARMING...' : 'ARM'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Connection unavailable modal - shown after 20s of continuous waiting */}
       {showWaitModal && (
