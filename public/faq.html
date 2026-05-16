@@ -608,19 +608,30 @@ details summary:hover .chevron  { color: var(--text-secondary); }
       </div>
     </details>
 
+  </div>
+
+  <div class="section">
+    <div class="section-label">05 - DEAD MAN'S SWITCH</div>
+
     <details>
       <summary>
         <span class="question">How does the Dead Man's switch work?</span>
         <span class="chevron">&#x25BE;</span>
       </summary>
       <div class="answer">
-        <p>You can schedule a message that activates automatically after a delay (1 to 48 hours). The message is encrypted and published to the relay immediately but hidden from everyone until the timer expires. A six-character cancellation code is shown once when you arm the switch. Enter that code before the timer runs out to delete the message. If no one cancels it, the message becomes visible to anyone in the room. The cancellation code is never stored on the relay. Only its SHA-256 hash is embedded in the encrypted payload.</p>
+        <p>A message sealed in the mines that reveals itself if you don't come back.</p>
+        <p>Write a message and set a timer: 1 hour, 2, 6, 12, 24, or 48 hours. The message is encrypted and published to the relay network immediately, but hidden from everyone. If you re-enter the room and enter your cancellation code before the timer expires, the message is deleted. If you don't, the timer runs out and the message becomes visible to anyone in the room.</p>
+        <p>No server runs the timer. The encrypted payload carries an activation timestamp. The recipient's client checks the clock. Before the timestamp: invisible. After: readable.</p>
+        <p>A six-character cancellation code is generated locally, shown once, and never stored. A SHA-256 hash of the code is embedded in the encrypted payload for verification. The actual code never touches the relay.</p>
+        <p>Other room participants can see that a switch is armed and counting down. They cannot see its contents. They cannot cancel it without the code.</p>
+        <p>Cancellation works from any device, any session. The deterministic signing key derived from the shared secret allows deletion from any browser. Enter the room, enter the code, the switch is disarmed.</p>
+        <p>Use it before a border crossing. Before a meeting that might go wrong. Before going somewhere you might not come back from.</p>
       </div>
     </details>
   </div>
 
   <div class="section">
-    <div class="section-label">05 - Message Lifetimes</div>
+    <div class="section-label">06 - Message Lifetimes</div>
 
     <details>
       <summary>
@@ -656,7 +667,7 @@ details summary:hover .chevron  { color: var(--text-secondary); }
   </div>
 
   <div class="section">
-    <div class="section-label">06 - Security Features</div>
+    <div class="section-label">07 - Security Features</div>
 
     <details>
       <summary>
@@ -823,7 +834,7 @@ details summary:hover .chevron  { color: var(--text-secondary); }
   </div>
 
   <div class="section">
-    <div class="section-label">07 - Choosing a Secret</div>
+    <div class="section-label">08 - Choosing a Secret</div>
 
     <details>
       <summary>
@@ -850,7 +861,7 @@ details summary:hover .chevron  { color: var(--text-secondary); }
   </div>
 
   <div class="section">
-    <div class="section-label">08 - Trust Model</div>
+    <div class="section-label">09 - Trust Model</div>
 
     <details>
       <summary>
@@ -912,7 +923,7 @@ details summary:hover .chevron  { color: var(--text-secondary); }
   </div>
 
   <div class="section">
-    <div class="section-label">09 - Threat Model</div>
+    <div class="section-label">10 - Threat Model</div>
 
     <p class="section-intro">Moria operates in two distinct modes with different privacy properties. Users should understand both.</p>
 
