@@ -257,7 +257,7 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
               </button>
             )}
             <button
-              className={`send-btn${rateLimited ? ' rate-limited' : hasContent && !disabled ? ' active' : ''}`}
+              className={`deadman-btn${rateLimited ? ' rate-limited' : hasContent && !disabled ? ' active' : ''}`}
               onClick={handleSend}
               disabled={!hasContent || disabled || !!rateLimited}
             >
@@ -305,7 +305,7 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
             </div>
 
             <button
-              className={`send-btn${rateLimited ? ' rate-limited' : hasContent && !disabled ? ' active' : ''}`}
+              className={`deadman-btn${rateLimited ? ' rate-limited' : hasContent && !disabled ? ' active' : ''}`}
               onClick={handleSend}
               disabled={!hasContent || disabled || !!rateLimited}
             >
