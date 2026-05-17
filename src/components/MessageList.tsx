@@ -45,7 +45,7 @@ function getBurnClass(secs: number): string {
   return ''
 }
 
-export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining, onConfirmDeadDrop, hasPeers: _hasPeers, peerCount, collapsedDrops, onToggleDropCollapse, onSelectReply }: MessageListProps) {
+export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirmDeadDrop, hasPeers: _hasPeers, peerCount, collapsedDrops, onToggleDropCollapse, onSelectReply }: MessageListProps) {
   const bottomRef    = useRef<HTMLDivElement>(null)
   const prevCountRef = useRef(messages.length)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
@@ -73,6 +73,7 @@ export function MessageList({ messages, myAlias: _myAlias, burnSecondsRemaining,
       className="chat-messages messages-area"
       style={{ flex: 1 }}
     >
+      <div className="room-info-line">session alias {myAlias}</div>
       {messages.map(msg => {
         const isMe     = msg.isMine
         const isSystem = msg.alias === 'system'
