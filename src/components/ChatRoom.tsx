@@ -557,6 +557,11 @@ export function ChatRoom({
                 <div className="warn-body" style={{ textAlign: 'center' }}>
                   Share these words with each peer separately over a different channel. Each connection has unique watchwords.
                 </div>
+                {peerWatchwords.some(pw => !pw.hasChatAlias) && (
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: '4px', marginBottom: '12px' }}>
+                    Peer aliases appear after the first message is exchanged.
+                  </div>
+                )}
                 <div className="verify-peers">
                   {peerWatchwords.map(pw => (
                     <div key={pw.peerId} className="verify-peer-section">
@@ -577,11 +582,6 @@ export function ChatRoom({
                 <div className="verify-hint">
                   Each peer has different watchwords. A mismatch on any connection may indicate interception.
                 </div>
-                {peerWatchwords.some(pw => !pw.hasChatAlias) && (
-                  <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', textAlign: 'center', marginTop: '8px' }}>
-                    Peer aliases appear after the first message is exchanged.
-                  </div>
-                )}
               </>
             )}
 
