@@ -839,6 +839,20 @@ input, textarea { font-family: var(--font-body); }
   word-break: break-word;
 }
 
+.msg-link {
+  color: rgba(255,255,255,0.5);
+  text-decoration: underline;
+  text-decoration-color: rgba(255,255,255,0.15);
+  text-underline-offset: 2px;
+  transition: color 0.2s, text-decoration-color 0.2s;
+  word-break: break-all;
+}
+
+.msg-link:hover {
+  color: rgba(255,255,255,0.8);
+  text-decoration-color: rgba(255,255,255,0.4);
+}
+
 .msg-footer {
   display: flex;
   align-items: center;

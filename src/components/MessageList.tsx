@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DisplayMessage } from '@/types'
 import { getPeerColor } from '@/utils/peerColors'
 import { playClick } from '@/utils/sounds'
+import { linkifyText } from '@/utils/linkify'
 
 function truncate(text: string, max = 100): string {
   return text.length > max ? text.slice(0, max) + '...' : text
@@ -174,7 +175,7 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
                   {msg.isDeadMan && (
                     <div className="deadman-label">DEAD MAN'S SWITCH</div>
                   )}
-                  <div className="msg-body">{msg.body}</div>
+                  <div className="msg-body">{linkifyText(msg.body)}</div>
                 </div>
               )}
             </div>
@@ -195,7 +196,7 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
             {/* Quoted reply */}
             {msg.replyTo && (
               <div className="msg-reply-quote">
-                {truncate(msg.replyTo.body)}
+                {linkifyText(truncate(msg.replyTo.body))}
               </div>
             )}
 
@@ -233,7 +234,7 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
                   onClick={e => { e.stopPropagation(); playClick(); setLightboxUrl(msg.imageUrl!) }}
                 />
               )
-              : <div className="msg-body">{msg.body}</div>
+              : <div className="msg-body">{linkifyText(msg.body)}</div>
             }
 
             {/* Footer: status text */}
