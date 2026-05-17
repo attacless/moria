@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DisplayMessage } from '@/types'
 import { getPeerColor } from '@/utils/peerColors'
+import { playClick } from '@/utils/sounds'
 
 function truncate(text: string, max = 100): string {
   return text.length > max ? text.slice(0, max) + '...' : text
@@ -47,13 +48,30 @@ function getBurnClass(secs: number): string {
 
 export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirmDeadDrop, hasPeers: _hasPeers, peerCount, collapsedDrops, onToggleDropCollapse, onSelectReply }: MessageListProps) {
   const bottomRef    = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const prevCountRef = useRef(messages.length)
+  const isAtBottomRef = useRef(true)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  const [unseenCount, setUnseenCount] = useState(0)
+
+  const handleScroll = useCallback(() => {
+    const el = containerRef.current
+    if (!el) return
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100
+    isAtBottomRef.current = atBottom
+    if (atBottom) setUnseenCount(0)
+  }, [])
 
   useEffect(() => {
     if (messages.length > prevCountRef.current) {
-      // Only scroll when a message was ADDED - not when burn timer removes one
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      if (isAtBottomRef.current) {
+        // User is at bottom - auto-scroll to new message
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      } else {
+        // User has scrolled up - count unseen received messages
+        const newest = messages[messages.length - 1]
+        if (newest && !newest.isMine) setUnseenCount(c => c + 1)
+      }
     }
     prevCountRef.current = messages.length
   }, [messages.length])
@@ -68,10 +86,19 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
     }
   }
 
+  function scrollToBottom() {
+    playClick()
+    setUnseenCount(0)
+    isAtBottomRef.current = true
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
   return (
     <div
+      ref={containerRef}
       className="chat-messages messages-area"
       style={{ flex: 1 }}
+      onScroll={handleScroll}
     >
       <div className="room-info-line">session alias {myAlias}</div>
       {messages.map(msg => {
@@ -99,7 +126,7 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
             <div
               key={msg.id}
               className="message received dead-drop-collapsed fade-in"
-              onClick={() => handleReveal(msg.id, true)}
+              onClick={() => { playClick(); handleReveal(msg.id, true) }}
             >
               <div className="dead-drop-header">
                 <span className="msg-time" style={dropTimeColor ? { color: dropTimeColor } : undefined}>{formatTime(msg.timestamp)}</span>
@@ -126,7 +153,7 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
               key={msg.id}
               className={`message received dead-drop-revealed fade-in${isOpen ? ' dead-drop-open' : ''}`}
               style={{ opacity, transition, cursor: 'pointer' }}
-              onClick={() => handleReveal(msg.id, false)}
+              onClick={() => { playClick(); handleReveal(msg.id, false) }}
             >
               <div className="dead-drop-header">
                 <span className="msg-time" style={revealedTimeColor ? { color: revealedTimeColor } : undefined}>{formatTime(msg.timestamp)}</span>
@@ -161,9 +188,9 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
         return (
           <div
             key={msg.id}
-            className={`message fade-in ${isMe ? 'own' : 'received'}${msg.imageUrl ? ' has-image' : ''}`}
+            className={`message ${isMe ? 'own' : 'received'}${msg.imageUrl ? ' has-image' : ''}`}
             style={{ opacity, transition, cursor: onSelectReply ? 'pointer' : undefined }}
-            onClick={() => onSelectReply?.(msg)}
+            onClick={() => { if (onSelectReply) { onSelectReply(msg) } }}
           >
             {/* Quoted reply */}
             {msg.replyTo && (
@@ -189,7 +216,7 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
                   src={msg.imageUrl}
                   className="msg-image"
                   alt="shared image"
-                  onClick={e => { e.stopPropagation(); setLightboxUrl(msg.imageUrl!) }}
+                  onClick={e => { e.stopPropagation(); playClick(); setLightboxUrl(msg.imageUrl!) }}
                 />
               )
               : <div className="msg-body">{msg.body}</div>
@@ -209,12 +236,18 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
           </div>
         )
       })}
+      {unseenCount > 0 && (
+        <button className="scroll-to-bottom" onClick={scrollToBottom} type="button">
+          {unseenCount} <span className="scroll-chevron">↓</span>
+        </button>
+      )}
+
       <div ref={bottomRef} />
 
       {lightboxUrl && (
         <div
           className="image-lightbox-overlay"
-          onClick={() => setLightboxUrl(null)}
+          onClick={() => { playClick(); setLightboxUrl(null) }}
         >
           <img
             src={lightboxUrl}

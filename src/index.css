@@ -661,7 +661,9 @@ input, textarea { font-family: var(--font-body); }
 }
 .peer-dot.waiting    { background: rgba(255, 255, 255, 0.3); }
 .peer-dot.connecting { background: var(--amber); animation: pulseFast 1s ease infinite; }
-.peer-dot.active     { background: var(--green); animation: pulse 2.4s ease infinite; }
+.peer-dot.active     { background: var(--green); animation: presencePulse 3s ease-in-out infinite; }
+.peer-dot.join-flash { animation: peerJoinFlash 0.6s ease-out forwards !important; }
+.peer-dot.leave-dim  { opacity: 0.3; transition: opacity 0.5s ease; }
 
 .peer-label {
   font-family: var(--font-mono);
@@ -777,7 +779,6 @@ input, textarea { font-family: var(--font-body); }
   max-width: 75%;
   padding: 14px 14px 10px;
   border-radius: 16px;
-  animation: msgAppear 0.2s ease;
   position: relative;
   margin-top: 8px;
   flex-shrink: 0;
@@ -789,6 +790,11 @@ input, textarea { font-family: var(--font-body); }
   border: none;
   border-radius: 16px 16px 4px 16px;
   box-shadow: 0 2px 8px rgba(255, 255, 255, 0.04), 0 0 1px rgba(255, 255, 255, 0.08);
+  animation: msgSlideUp 150ms ease-out;
+}
+
+.message.received {
+  animation: msgFadeInLeft 150ms ease-out;
 }
 
 .message.received {
@@ -1014,6 +1020,50 @@ input, textarea { font-family: var(--font-body); }
   color: rgba(255,255,255,0.25);
   font-family: var(--font-body);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.typing-dots {
+  display: inline-flex;
+  gap: 2px;
+  font-size: 18px;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.typing-dot {
+  animation: typingDot 1.4s infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+.scroll-to-bottom {
+  position: sticky;
+  bottom: 12px;
+  align-self: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 4px 12px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: opacity 0.2s, background 0.2s;
+  z-index: 10;
+  flex-shrink: 0;
+}
+.scroll-to-bottom:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.scroll-chevron {
+  display: inline-block;
+  transform: rotate(0deg);
 }
 
 .input-bar-wrap {
@@ -1896,6 +1946,32 @@ input, textarea { font-family: var(--font-body); }
 @keyframes msgAppear {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes msgSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes msgFadeInLeft {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes presencePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.6; transform: scale(1.3); }
+}
+
+@keyframes peerJoinFlash {
+  0%   { box-shadow: 0 0 0 0 rgba(21, 190, 83, 0.6); }
+  50%  { box-shadow: 0 0 8px 4px rgba(21, 190, 83, 0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(21, 190, 83, 0); }
+}
+
+@keyframes typingDot {
+  0%, 60%, 100% { opacity: 0.2; }
+  30%           { opacity: 0.8; }
 }
 
 @keyframes burnPulse {

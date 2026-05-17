@@ -2,6 +2,7 @@ import { MessageList } from './MessageList'
 import { InputBar }    from './InputBar'
 import { webRTCAvailable } from '@/capabilities'
 import { getPeerColor } from '@/utils/peerColors'
+import { playClick } from '@/utils/sounds'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DisplayMessage, ReplyTo, Alias, PendingDeadMan, PeerWatchwords } from '@/types'
 
@@ -180,6 +181,22 @@ export function ChatRoom({
     }
   }, [codeInputs, onCancelDeadMan])
 
+  // ── Peer connection feedback ─────────────────────────────────────────────
+  const dotRef          = useRef<HTMLDivElement>(null)
+  const prevPeerCountRef = useRef(peerCount)
+
+  useEffect(() => {
+    const prev = prevPeerCountRef.current
+    prevPeerCountRef.current = peerCount
+    if (peerCount > prev) {
+      dotRef.current?.classList.add('join-flash')
+      setTimeout(() => dotRef.current?.classList.remove('join-flash'), 600)
+    } else if (peerCount < prev) {
+      dotRef.current?.classList.add('leave-dim')
+      setTimeout(() => dotRef.current?.classList.remove('leave-dim'), 500)
+    }
+  }, [peerCount])
+
   // ── Unread tab badge ────────────────────────────────────────────────────
   const seenIdsRef = useRef<Set<string>>(new Set())
   const [unreadCount, setUnreadCount] = useState(0)
@@ -282,7 +299,7 @@ export function ChatRoom({
           </div>
           {/* Peer status to the right of the brand */}
           <div className="peer-indicator">
-            <div className={`peer-dot ${peerDotClass}`} />
+            <div ref={dotRef} className={`peer-dot ${peerDotClass}`} />
             <span className="peer-label">{peerLabel}</span>
           </div>
 
@@ -292,20 +309,20 @@ export function ChatRoom({
           {peerCount >= 1 && onGetWatchwords && (
             <button
               className="action-btn"
-              onClick={handleOpenVerify}
+              onClick={() => { playClick(); handleOpenVerify() }}
               title="Verify connection - share watchwords to confirm no MITM"
             >
               VERIFY
             </button>
           )}
 
-          <button className="action-btn leave" onClick={onLeave}>
+          <button className="action-btn leave" onClick={() => { playClick(); onLeave() }}>
             LEAVE
           </button>
 
           <button
             className={`action-btn terminate${terminating ? ' nuking' : ''}`}
-            onClick={handleTerminate}
+            onClick={() => { playClick(); handleTerminate() }}
             disabled={terminating}
             title="Delete all your messages from all peers and disconnect"
           >
@@ -323,7 +340,7 @@ export function ChatRoom({
           </div>
           <button
             className="duress-banner-terminate"
-            onClick={handleTerminate}
+            onClick={() => { playClick(); handleTerminate() }}
             disabled={terminating}
           >
             {terminating ? 'NUKING...' : 'TERMINATE'}
@@ -361,7 +378,12 @@ export function ChatRoom({
               : undefined
           }
         >
-          typing...
+          {peerCount >= 2 && peerCount <= 6 && typingAliases[0] !== undefined && typingAliases[0].length > 0 ? `${typingAliases[0]} ` : ''}
+          <span className="typing-dots">
+            <span className="typing-dot">.</span>
+            <span className="typing-dot">.</span>
+            <span className="typing-dot">.</span>
+          </span>
         </div>
       )}
 
@@ -389,17 +411,17 @@ export function ChatRoom({
                         spellCheck={false}
                         autoComplete="off"
                       />
-                      <button className="pending-deadman-verify" onClick={() => handleVerifyCode(dm)} type="button">
+                      <button className="pending-deadman-verify" onClick={() => { playClick(); handleVerifyCode(dm) }} type="button">
                         VERIFY
                       </button>
-                      <button className="pending-deadman-dismiss" onClick={() => cancelEntering(dm.eventId)} type="button">
+                      <button className="pending-deadman-dismiss" onClick={() => { playClick(); cancelEntering(dm.eventId) }} type="button">
                         X
                       </button>
                     </div>
                   ) : (
                     <button
                       className={`pending-deadman-enter${hasError ? ' error' : ''}`}
-                      onClick={() => startEntering(dm.eventId)}
+                      onClick={() => { playClick(); startEntering(dm.eventId) }}
                       type="button"
                     >
                       {hasError ? 'INVALID CODE' : 'ENTER CODE'}
@@ -449,7 +471,7 @@ export function ChatRoom({
             <div className="warn-actions">
               <button
                 className="warn-btn primary"
-                onClick={() => setArmedToken(null)}
+                onClick={() => { playClick(); setArmedToken(null) }}
                 type="button"
               >
                 I SAVED IT
@@ -472,7 +494,7 @@ export function ChatRoom({
                 <button
                   key={opt.seconds}
                   className={`deadman-timer-opt${deadManTimerSecs === opt.seconds ? ' active' : ''}`}
-                  onClick={() => setDeadManTimerSecs(opt.seconds)}
+                  onClick={() => { playClick(); setDeadManTimerSecs(opt.seconds) }}
                   type="button"
                 >
                   {opt.label}
@@ -491,7 +513,7 @@ export function ChatRoom({
             <div className="warn-actions">
               <button
                 className="warn-btn ghost"
-                onClick={() => setShowDeadManModal(false)}
+                onClick={() => { playClick(); setShowDeadManModal(false) }}
                 disabled={deadManArming}
                 type="button"
               >
@@ -499,7 +521,7 @@ export function ChatRoom({
               </button>
               <button
                 className="warn-btn primary"
-                onClick={handleArmDeadMan}
+                onClick={() => { playClick(); handleArmDeadMan() }}
                 disabled={!deadManBody.trim() || deadManArming}
                 type="button"
               >
@@ -566,7 +588,7 @@ export function ChatRoom({
             <div className="warn-actions">
               <button
                 className="warn-btn primary"
-                onClick={() => setPeerWatchwords(null)}
+                onClick={() => { playClick(); setPeerWatchwords(null) }}
                 type="button"
               >
                 CLOSE
@@ -585,12 +607,12 @@ export function ChatRoom({
               No one else is in this room yet. You can still communicate using dead drop mode. New messages appear automatically every 30 seconds. If a peer joins and live chat does not connect, your network may not support direct peer-to-peer connections.
             </div>
             <div className="warn-actions">
-              <button className="warn-btn ghost" onClick={onLeave}>
+              <button className="warn-btn ghost" onClick={() => { playClick(); onLeave() }}>
                 leave room
               </button>
               <button
                 className="warn-btn primary"
-                onClick={() => { setWaitModalDismissed(true); setShowWaitModal(false) }}
+                onClick={() => { playClick(); setWaitModalDismissed(true); setShowWaitModal(false) }}
               >
                 send dead drop (queue)
               </button>

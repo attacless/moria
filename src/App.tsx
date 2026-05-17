@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { initSounds }         from '@/utils/sounds'
 import { useRoom }            from '@hooks/useRoom'
 import { usePanic }           from '@hooks/usePanic'
 import { useInactivityTimer } from '@hooks/useInactivityTimer'
@@ -51,6 +52,16 @@ export default function App() {
 
   usePanic({ onPanic: panic })
   useInactivityTimer(screen === 'chat', { onWarn, onDisconnect })
+
+  // Init audio on first user interaction to satisfy browser autoplay policy
+  useEffect(() => {
+    window.addEventListener('click',      initSounds, { once: true })
+    window.addEventListener('touchstart', initSounds, { once: true })
+    return () => {
+      window.removeEventListener('click',      initSounds)
+      window.removeEventListener('touchstart', initSounds)
+    }
+  }, [])
 
   // Track screen changes to drive chat entrance animation
   useEffect(() => {

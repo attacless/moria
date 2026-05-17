@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef, type KeyboardEvent, type ClipboardEvent, type DragEvent, type ChangeEvent } from 'react'
 import type { ReplyTo } from '@/types'
+import { playClick } from '@/utils/sounds'
 
 const TTL_OPTIONS = [
   { label: '2h',  seconds: 2  * 60 * 60 },
@@ -136,6 +137,7 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
     if (disabled) return
 
     if (imageFile && onSendImage) {
+      playClick()
       onSendImage(imageFile)
       clearImagePreview()
       return
@@ -143,6 +145,7 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
 
     const trimmed = value.trim()
     if (!trimmed) return
+    playClick()
     onSend(trimmed, ttlSecs)
     setValue('')
   }, [value, disabled, onSend, ttlSecs, imageFile, onSendImage])  // eslint-disable-line react-hooks/exhaustive-deps
@@ -181,7 +184,7 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
           <div className="reply-bar-text">
             {replyTo.body.length >= 100 ? replyTo.body.slice(0, 100) + '...' : replyTo.body}
           </div>
-          <button className="reply-cancel" onClick={onCancelReply} type="button">
+          <button className="reply-cancel" onClick={() => { playClick(); onCancelReply?.() }} type="button">
             {'✕'}
           </button>
         </div>
@@ -193,7 +196,7 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
           <span className="image-preview-label">image attached</span>
           <button
             className="reply-cancel"
-            onClick={clearImagePreview}
+            onClick={() => { playClick(); clearImagePreview() }}
             type="button"
             aria-label="Remove image"
           >
@@ -209,7 +212,7 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
             <button
               key={opt.seconds}
               className={`ttl-opt${ttlSecs === opt.seconds ? ' active' : ''}`}
-              onClick={() => setTtlSecs(opt.seconds)}
+              onClick={() => { playClick(); setTtlSecs(opt.seconds) }}
               type="button"
             >
               {opt.label}
@@ -249,7 +252,7 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
             {onOpenDeadMan && (
               <button
                 className="deadman-btn"
-                onClick={onOpenDeadMan}
+                onClick={() => { playClick(); onOpenDeadMan() }}
                 type="button"
                 title="Schedule a message to send automatically after a delay"
               >
@@ -273,7 +276,7 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
               <button
                 ref={plusBtnRef}
                 className={`attach-btn${popoverOpen ? ' open' : ''}`}
-                onClick={() => setPopoverOpen(o => !o)}
+                onClick={() => { playClick(); setPopoverOpen(o => !o) }}
                 type="button"
                 aria-label="Attachments"
               >
@@ -286,7 +289,7 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
                     <button
                       className="attach-menu-item"
                       type="button"
-                      onClick={() => { setPopoverOpen(false); fileInputRef.current?.click() }}
+                      onClick={() => { playClick(); setPopoverOpen(false); fileInputRef.current?.click() }}
                     >
                       IMAGE
                     </button>
@@ -295,7 +298,7 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
                     <button
                       className="attach-menu-item"
                       type="button"
-                      onClick={() => { setPopoverOpen(false); onOpenDeadMan() }}
+                      onClick={() => { playClick(); setPopoverOpen(false); onOpenDeadMan() }}
                     >
                       {"DEAD MAN'S SWITCH"}
                     </button>

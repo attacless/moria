@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, type FormEvent } from 'react'
 import { StarSvg } from './StarSvg'
 import { webRTCAvailable, wasmAvailable } from '@/capabilities'
+import { playClick } from '@/utils/sounds'
 
 interface EntryScreenProps {
   onJoin:    (password: string) => Promise<void>
@@ -78,6 +79,7 @@ export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
   const handleSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault()
     if (!canJoin) return
+    playClick()
     await onJoin(password)
   }, [canJoin, onJoin, password])
 
@@ -114,7 +116,7 @@ export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
             />
-            <button type="button" className="toggle-vis" onClick={() => setShowPass(p => !p)}>
+            <button type="button" className="toggle-vis" onClick={() => { playClick(); setShowPass(p => !p) }}>
               {showPass ? 'HIDE' : 'SHOW'}
             </button>
           </div>
@@ -182,10 +184,10 @@ export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
             </div>
           )}
           <div className="warn-actions">
-            <button className="warn-btn ghost" onClick={handleCloseTab}>
+            <button className="warn-btn ghost" onClick={() => { playClick(); handleCloseTab() }}>
               close
             </button>
-            <button className="warn-btn primary" onClick={() => setShowWebRTCModal(false)}>
+            <button className="warn-btn primary" onClick={() => { playClick(); setShowWebRTCModal(false) }}>
               continue in dead drop mode
             </button>
           </div>
