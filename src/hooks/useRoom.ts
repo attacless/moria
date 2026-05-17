@@ -132,17 +132,20 @@ export function useRoom() {
     if (!keys) return
 
     const drops = await fetchDeadDrops(keys.dropId, keys.roomKey)
-    if (drops.length === 0) return
+
+    // null means the fetch was skipped (rate-limited or no relays reachable).
+    // Do not reconcile state against a skipped fetch - the relay was not queried.
+    if (drops === null) return
 
     const nowSecs = Math.floor(Date.now() / 1000)
 
     const hasPoison = drops.some(d => d.type === 'DURESS')
     if (hasPoison) setDuressDetected(true)
 
-    // Separate pending DEADMAN (not yet activated) from everything else.
-    // Pending switches are shown in a dedicated section with countdown + CANCEL.
-    // They are NOT added to seenDropIds so they keep appearing each poll until
-    // they either activate (become normal messages) or are cancelled.
+    // Relay is the source of truth for armed dead man switches.
+    // Replace local state with exactly what the relay returned (armed, not yet expired).
+    // If the relay returns no pending switches, all local entries are cleared -
+    // this reconciles cancellations made by other clients since the last poll.
     const pendingDrops = drops.filter(
       d => d.type === 'DEADMAN' && d.activateAfter && d.activateAfter > nowSecs
     )
@@ -155,7 +158,13 @@ export function useRoom() {
       ...(d.tokenHash ? { tokenHash: d.tokenHash } : {}),
     })))
 
+    // Nothing to add to the message list - reconciliation above is the only work.
+    if (drops.length === 0) return
+
     // All other drops (TEXT, activated DEADMAN, etc.) go through the normal pipeline.
+    // An activated DEADMAN (activateAfter <= now) passes through here and is displayed
+    // as a message. It is also removed from pendingDeadMans by the setPendingDeadMans
+    // call above (since it no longer matches activateAfter > nowSecs).
     const newDrops = drops
       .filter(d => d.type !== 'DURESS')
       .filter(d => !(d.type === 'DEADMAN' && d.activateAfter && d.activateAfter > nowSecs))

@@ -311,11 +311,11 @@ export async function publishPoisonEvent(
 export async function fetchDeadDrops(
   dropId:  string,
   roomKey: Uint8Array
-): Promise<{ alias: Alias; timestamp: number; body: string; type: MessageType; activateAfter?: number; tokenHash?: string; eventId: string }[]> {
+): Promise<{ alias: Alias; timestamp: number; body: string; type: MessageType; activateAfter?: number; tokenHash?: string; eventId: string }[] | null> {
   const nowMs = Date.now()
   if (nowMs - lastFetchTime < FETCH_RATE_LIMIT_MS) {
     console.warn('[deadDrop] fetch rate limited - too soon after last fetch')
-    return []
+    return null  // skipped - caller must not reconcile state against this
   }
   lastFetchTime = nowMs
 
@@ -325,7 +325,7 @@ export async function fetchDeadDrops(
 
   const liveRelays = await getLiveRelays(4)
 
-  if (liveRelays.length === 0) return []
+  if (liveRelays.length === 0) return null  // skipped - caller must not reconcile state against this
 
   const filter = {
     kinds: [EVENT_KIND],
