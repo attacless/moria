@@ -27,7 +27,7 @@ export interface PeerWatchwords {
   hasChatAlias: boolean   // false when alias is a fallback peer ID truncation
 }
 
-export type MessageType = 'TEXT' | 'DECOY' | 'SYSTEM' | 'PUBKEY_HANDSHAKE' | 'TERMINATE' | 'DURESS' | 'TYPING' | 'DEADMAN' | 'IMAGE' | 'IMAGE_CHUNK'
+export type MessageType = 'TEXT' | 'DECOY' | 'SYSTEM' | 'PUBKEY_HANDSHAKE' | 'TERMINATE' | 'DURESS' | 'TYPING' | 'DEADMAN' | 'IMAGE' | 'IMAGE_CHUNK' | 'DEADMAN_ARMED' | 'DEADMAN_CANCELLED'
 
 export interface ReplyTo {
   id:    string
@@ -48,6 +48,7 @@ export interface WireMessage {
   totalChunks?:   number                  // IMAGE_CHUNK only: total chunk count
   imageData?:     string                  // IMAGE_CHUNK only: base64 chunk payload
   mimeType?:      string                  // IMAGE_CHUNK only: image MIME type (first chunk only)
+  eventId?:       string                  // DEADMAN_ARMED / DEADMAN_CANCELLED only: relay event ID
 }
 
 export interface DisplayMessage {

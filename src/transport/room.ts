@@ -41,9 +41,11 @@ export interface RoomCallbacks {
   onPresenceJoin:  (peerId: PeerId) => void   // raw Trystero presence (immediate)
   onPresenceLeave: (peerId: PeerId) => void
   onTerminate:     (alias: Alias) => void
-  onRoomFull:      () => void
-  onTyping:        (alias: Alias) => void
-  onImageChunk?:   (imageId: string, chunkIndex: number, totalChunks: number, imageData: string, mimeType: string, alias: Alias) => void
+  onRoomFull:          () => void
+  onTyping:            (alias: Alias) => void
+  onImageChunk?:       (imageId: string, chunkIndex: number, totalChunks: number, imageData: string, mimeType: string, alias: Alias) => void
+  onDeadManArmed?:     (eventId: string, activateAfter: number, tokenHash: string | undefined, alias: Alias, timestamp: number) => void
+  onDeadManCancelled?: (eventId: string) => void
 }
 
 export async function joinChatRoom(
@@ -190,6 +192,20 @@ export async function joinChatRoom(
     }
 
     if (msg.type === 'IMAGE') return  // reserved, not yet used for incoming
+
+    if (msg.type === 'DEADMAN_ARMED') {
+      if (callbacks.onDeadManArmed && msg.eventId && msg.activateAfter) {
+        callbacks.onDeadManArmed(msg.eventId, msg.activateAfter, msg.tokenHash, msg.alias, msg.timestamp)
+      }
+      return
+    }
+
+    if (msg.type === 'DEADMAN_CANCELLED') {
+      if (callbacks.onDeadManCancelled && msg.eventId) {
+        callbacks.onDeadManCancelled(msg.eventId)
+      }
+      return
+    }
 
     if (msg.type === 'IMAGE_CHUNK') {
       if (
@@ -371,6 +387,55 @@ export function sendRawWire(data: Uint8Array, targets: PeerId[]): void {
 // Peer session map accessor - used by decoy engine
 export function getPeerSessions(): Map<PeerId, PeerSession> {
   return new Map(peers)
+}
+
+// Broadcast DEADMAN_ARMED to all connected peers for instant notification.
+// Peers with no P2P connection will learn about the switch via the relay poll.
+export function broadcastDeadManArmed(
+  eventId:      string,
+  activateAfter: number,
+  tokenHash:    string,
+  alias:        Alias,
+  timestamp:    number,
+): void {
+  if (!sendWire || peers.size === 0) return
+  const wire: WireMessage = {
+    type: 'DEADMAN_ARMED',
+    alias,
+    timestamp,
+    body: '',
+    eventId,
+    activateAfter,
+    tokenHash,
+  }
+  peers.forEach((peer, peerId) => {
+    try {
+      const encrypted = syncEncrypt(wire, peer.sessionKey)
+      sendWire!(encrypted, [peerId])
+    } catch (err) {
+      console.error('[room] broadcastDeadManArmed failed for peer', peerId, err)
+    }
+  })
+}
+
+// Broadcast DEADMAN_CANCELLED to all connected peers for instant removal.
+export function broadcastDeadManCancelled(eventId: string, alias: Alias): void {
+  if (!sendWire || peers.size === 0) return
+  const wire: WireMessage = {
+    type: 'DEADMAN_CANCELLED',
+    alias,
+    timestamp: roundTimestamp(Date.now()),
+    body: '',
+    eventId,
+  }
+  peers.forEach((peer, peerId) => {
+    try {
+      const encrypted = syncEncrypt(wire, peer.sessionKey)
+      sendWire!(encrypted, [peerId])
+    } catch (err) {
+      console.error('[room] broadcastDeadManCancelled failed for peer', peerId, err)
+    }
+  })
 }
 
 // Derive watchwords for every connected peer on demand.

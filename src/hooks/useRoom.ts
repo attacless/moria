@@ -12,10 +12,12 @@ import {
   sendRawWire,
   getPeerSessions,
   getPerPeerWatchwords,
+  broadcastDeadManArmed,
+  broadcastDeadManCancelled,
 } from '@transport/room'
 import { startDecoyEngine, stopDecoyEngine } from '@transport/decoy'
 import { webRTCAvailable } from '@/capabilities'
-import { publishDeadDrop, fetchDeadDrops, deleteDeadDrops, deleteAllDeadDrops, publishPoisonEvent } from '@transport/deadDrop'
+import { publishDeadDrop, fetchDeadDrops, fetchDeadManEvents, deleteDeadDrops, deleteAllDeadDrops, publishPoisonEvent } from '@transport/deadDrop'
 import { resetPeerColors } from '@/utils/peerColors'
 import type { DeadDropReceipt } from '@transport/deadDrop'
 import type { PublishResult } from '@transport/deadDrop'
@@ -102,7 +104,8 @@ export function useRoom() {
 
   const sessionRef       = useRef<SessionKeys | null>(null)
   const deadDropReceipts = useRef<DeadDropReceipt[]>([])
-  const pollIntervalRef  = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollIntervalRef    = useRef<ReturnType<typeof setInterval> | null>(null)
+  const deadManPollRef     = useRef<ReturnType<typeof setInterval> | null>(null)
   // Tracks every dead drop ever displayed this session (alias:timestamp:body).
   // Outlives the burn lifecycle so polls never re-display a burned message.
   // Cleared on leave/terminate/panic alongside other session state.
@@ -190,6 +193,45 @@ export function useRoom() {
     if (getPeerCount() > 0) autoConfirmDeadDrops()
   }, [addMessages, autoConfirmDeadDrops])
 
+  // ── Dead man state reconciliation ────────────────────────────────────────
+  // Runs every 30s regardless of peerCount. Fetches DEADMAN events from the
+  // relay and reconciles pendingDeadMans against the relay's source of truth.
+  // Uses an independent rate limiter (fetchDeadManEvents) so it never conflicts
+  // with the message poll (fetchAndAddDrops / fetchDeadDrops).
+
+  const fetchDeadManState = useCallback(async () => {
+    const keys = sessionRef.current
+    if (!keys) return
+
+    const events = await fetchDeadManEvents(keys.dropId, keys.roomKey)
+    if (events === null) return  // skipped (rate-limited or no relays)
+
+    const nowSecs = Math.floor(Date.now() / 1000)
+    const relayArmedIds = new Set(
+      events
+        .filter(e => e.activateAfter && e.activateAfter > nowSecs)
+        .map(e => e.eventId)
+    )
+
+    setPendingDeadMans(prev => {
+      // Remove entries no longer on relay (cancelled by another client or expired)
+      const kept   = prev.filter(dm => relayArmedIds.has(dm.eventId))
+      const keptIds = new Set(kept.map(dm => dm.eventId))
+      // Add entries the relay has that are not yet in local state
+      const added = events
+        .filter(e => e.activateAfter && e.activateAfter > nowSecs && !keptIds.has(e.eventId))
+        .map(e => ({
+          eventId:    e.eventId,
+          alias:      e.alias,
+          timestamp:  e.timestamp * 1000,
+          activateAt: e.activateAfter!,
+          body:       e.body,
+          ...(e.tokenHash ? { tokenHash: e.tokenHash } : {}),
+        }))
+      return [...kept, ...added]
+    })
+  }, [])
+
   const handleTypingPeer = useCallback((peerAlias: Alias) => {
     const existing = typingTimers.current.get(peerAlias)
     if (existing) clearTimeout(existing)
@@ -250,6 +292,27 @@ export function useRoom() {
 
         onRoomFull:     () => setRoomFull(true),
         onTyping:       (peerAlias: Alias) => handleTypingPeer(peerAlias),
+
+        // Instant P2P notification when a peer arms a dead man switch.
+        // The relay poll provides the same data for peers who join later.
+        onDeadManArmed: (eventId: string, activateAfter: number, tokenHash: string | undefined, peerAlias: Alias, timestamp: number) => {
+          setPendingDeadMans(prev => {
+            if (prev.some(dm => dm.eventId === eventId)) return prev  // already known
+            return [...prev, {
+              eventId,
+              alias:     peerAlias,
+              timestamp,                // already in ms (WireMessage timestamps are ms)
+              activateAt: activateAfter,
+              body:       '',           // not transmitted over P2P; shown only on activation
+              ...(tokenHash ? { tokenHash } : {}),
+            }]
+          })
+        },
+
+        // Instant P2P notification when a peer cancels a dead man switch.
+        onDeadManCancelled: (eventId: string) => {
+          setPendingDeadMans(prev => prev.filter(d => d.eventId !== eventId))
+        },
 
         onImageChunk: (imageId: string, chunkIndex: number, totalChunks: number, imageData: string, mimeType: string, peerAlias: Alias) => {
           let entry = imageChunkBuffer.current.get(imageId)
@@ -478,6 +541,16 @@ export function useRoom() {
           body,
           tokenHash,
         }])
+
+        // Notify connected peers instantly over P2P.
+        // Peers who join later learn about the switch via the relay poll.
+        broadcastDeadManArmed(
+          result.receipt.eventId,
+          activateAfter,
+          tokenHash,
+          alias,
+          publishedTimestamp,
+        )
       }
     }
 
@@ -490,8 +563,10 @@ export function useRoom() {
     try {
       await deleteDeadDrops([{ eventId, expiresAt: 0 }], keys.dropId, keys.signingKey)
     } catch {}
+    // Notify connected peers instantly; relay poll reconciles for peers not online.
+    broadcastDeadManCancelled(eventId, alias)
     setPendingDeadMans(prev => prev.filter(d => d.eventId !== eventId))
-  }, [])
+  }, [alias])
 
   // ── Image send ──────────────────────────────────────────────────────────
 
@@ -534,7 +609,8 @@ export function useRoom() {
   // ── Leave ────────────────────────────────────────────────────────────────
 
   const leave = useCallback(() => {
-    if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null }
+    if (pollIntervalRef.current)  { clearInterval(pollIntervalRef.current);  pollIntervalRef.current  = null }
+    if (deadManPollRef.current)   { clearInterval(deadManPollRef.current);   deadManPollRef.current   = null }
     seenDropIds.current.clear()
     deadDropReceipts.current = []
     sessionRef.current?.signingKey.fill(0)
@@ -564,7 +640,8 @@ export function useRoom() {
   // ── Terminate ────────────────────────────────────────────────────────────
 
   const terminate = useCallback(async () => {
-    if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null }
+    if (pollIntervalRef.current)  { clearInterval(pollIntervalRef.current);  pollIntervalRef.current  = null }
+    if (deadManPollRef.current)   { clearInterval(deadManPollRef.current);   deadManPollRef.current   = null }
     seenDropIds.current.clear()
     const keys = sessionRef.current
     deadDropReceipts.current = []
@@ -605,7 +682,8 @@ export function useRoom() {
   // ── Panic ────────────────────────────────────────────────────────────────
 
   const panic = useCallback(() => {
-    if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null }
+    if (pollIntervalRef.current)  { clearInterval(pollIntervalRef.current);  pollIntervalRef.current  = null }
+    if (deadManPollRef.current)   { clearInterval(deadManPollRef.current);   deadManPollRef.current   = null }
     seenDropIds.current.clear()
     deadDropReceipts.current = []
     sessionRef.current?.signingKey.fill(0)
@@ -668,6 +746,30 @@ export function useRoom() {
       }
     }
   }, [screen, peerCount, fetchAndAddDrops])
+
+  // ── Dead man switch reconciliation poll ──────────────────────────────────
+  // Runs every 30s regardless of peerCount. Catches armed switches published
+  // while offline and cancellations made by other clients.
+  // Independent of the message poll: uses a separate rate limiter in deadDrop.ts.
+
+  useEffect(() => {
+    if (screen !== 'chat') {
+      if (deadManPollRef.current) {
+        clearInterval(deadManPollRef.current)
+        deadManPollRef.current = null
+      }
+      return
+    }
+
+    deadManPollRef.current = setInterval(() => { fetchDeadManState() }, 30_000)
+
+    return () => {
+      if (deadManPollRef.current) {
+        clearInterval(deadManPollRef.current)
+        deadManPollRef.current = null
+      }
+    }
+  }, [screen, fetchDeadManState])
 
   // ── Inactivity callbacks ──────────────────────────────────────────────────
 

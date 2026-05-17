@@ -19,12 +19,14 @@ const FETCH_TIMEOUT = 8_000    // 8s for actual query once reachable
 
 const FETCH_RATE_LIMIT_MS   = 30_000
 const PUBLISH_RATE_LIMIT_MS = 5_000
-let lastFetchTime   = 0
-let lastPublishTime = 0
+let lastFetchTime      = 0
+let lastDeadManFetch   = 0
+let lastPublishTime    = 0
 
 export function resetDeadDropRateLimits(): void {
-  lastFetchTime   = 0
-  lastPublishTime = 0
+  lastFetchTime    = 0
+  lastDeadManFetch = 0
+  lastPublishTime  = 0
 }
 
 // Pre-flight: open a WebSocket to the relay and wait for open or failure.
@@ -308,44 +310,37 @@ export async function publishPoisonEvent(
   }
 }
 
-export async function fetchDeadDrops(
-  dropId:  string,
-  roomKey: Uint8Array
-): Promise<{ alias: Alias; timestamp: number; body: string; type: MessageType; activateAfter?: number; tokenHash?: string; eventId: string }[] | null> {
-  const nowMs = Date.now()
-  if (nowMs - lastFetchTime < FETCH_RATE_LIMIT_MS) {
-    console.warn('[deadDrop] fetch rate limited - too soon after last fetch')
-    return null  // skipped - caller must not reconcile state against this
-  }
-  lastFetchTime = nowMs
+// ── Shared relay query helper ────────────────────────────────────────────────
+// Queries liveRelays for all encrypted events in this room, decrypts them,
+// and returns the results sorted by timestamp. Includes a single retry on
+// empty results to absorb relay propagation delays.
 
-  const now    = Math.floor(nowMs / 1000)
-  const seen   = new Set<string>()
-  const results: { alias: Alias; timestamp: number; body: string; type: MessageType; activateAfter?: number; tokenHash?: string; eventId: string }[] = []
+type DropEvent = {
+  alias:          Alias
+  timestamp:      number
+  body:           string
+  type:           MessageType
+  activateAfter?: number
+  tokenHash?:     string
+  eventId:        string
+}
 
-  const liveRelays = await getLiveRelays(4)
+async function queryRoomEvents(dropId: string, roomKey: Uint8Array, liveRelays: string[]): Promise<DropEvent[]> {
+  const now     = Math.floor(Date.now() / 1000)
+  const seen    = new Set<string>()
+  const results: DropEvent[] = []
 
-  if (liveRelays.length === 0) return null  // skipped - caller must not reconcile state against this
-
-  const filter = {
-    kinds: [EVENT_KIND],
-    '#r':  [dropId],
-    since: now - DROP_TTL_S,
-  }
+  const filter = { kinds: [EVENT_KIND], '#r': [dropId], since: now - DROP_TTL_S }
 
   async function decryptEvent(event: { id: string; content: string; tags: string[][] }): Promise<void> {
     if (seen.has(event.id)) return
-
     const expiryTag = event.tags.find(t => t[0] === 'expiration')
     if (expiryTag && parseInt(expiryTag[1] ?? '0') < now) return
-
     seen.add(event.id)
-
     try {
       const bytes     = Uint8Array.from(atob(event.content), c => c.charCodeAt(0))
       const decrypted = await decryptMessage(bytes, roomKey)
       if (!decrypted || decrypted.type === 'DECOY') return
-
       results.push({
         alias:     decrypted.alias,
         timestamp: decrypted.timestamp,
@@ -361,35 +356,69 @@ export async function fetchDeadDrops(
   }
 
   const pool = new SimplePool()
-
   try {
     const events = await Promise.race([
       pool.querySync(liveRelays, filter),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('fetch timeout')), FETCH_TIMEOUT)
-      ),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('fetch timeout')), FETCH_TIMEOUT)),
     ])
-
     await Promise.all(events.map(decryptEvent))
 
-    // If empty, wait 2s and retry once - relay propagation delay
+    // If empty, wait 2s and retry once for relay propagation delay
     if (results.length === 0 && events.length === 0) {
       await new Promise(r => setTimeout(r, 2_000))
-
       const retryEvents = await Promise.race([
         pool.querySync(liveRelays, filter),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('retry timeout')), FETCH_TIMEOUT)
-        ),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('retry timeout')), FETCH_TIMEOUT)),
       ]).catch(() => [] as Awaited<ReturnType<typeof pool.querySync>>)
-
       await Promise.all(retryEvents.map(decryptEvent))
     }
   } catch {
-    // fetch failed - return whatever we collected
+    // fetch failed - return whatever was collected
   } finally {
     pool.close(liveRelays)
   }
 
   return results.sort((a, b) => a.timestamp - b.timestamp)
+}
+
+// ── Public fetch functions ───────────────────────────────────────────────────
+
+// Fetches all relay events for dead drop messaging. Returns null when the fetch
+// is skipped (rate-limited or no relays reachable) so callers can distinguish
+// a genuine empty result from a skipped fetch and avoid incorrect reconciliation.
+export async function fetchDeadDrops(
+  dropId:  string,
+  roomKey: Uint8Array
+): Promise<DropEvent[] | null> {
+  const nowMs = Date.now()
+  if (nowMs - lastFetchTime < FETCH_RATE_LIMIT_MS) {
+    console.warn('[deadDrop] fetch rate limited - too soon after last fetch')
+    return null  // skipped - caller must not reconcile state against this
+  }
+  lastFetchTime = nowMs
+
+  const liveRelays = await getLiveRelays(4)
+  if (liveRelays.length === 0) return null
+
+  return queryRoomEvents(dropId, roomKey, liveRelays)
+}
+
+// Fetches only DEADMAN-type relay events for dead man switch reconciliation.
+// Uses an independent rate limit so it never conflicts with fetchDeadDrops.
+// Returns null when skipped; an array (possibly empty) when the relay was queried.
+export async function fetchDeadManEvents(
+  dropId:  string,
+  roomKey: Uint8Array
+): Promise<DropEvent[] | null> {
+  const nowMs = Date.now()
+  if (nowMs - lastDeadManFetch < FETCH_RATE_LIMIT_MS) {
+    return null  // skipped
+  }
+  lastDeadManFetch = nowMs
+
+  const liveRelays = await getLiveRelays(4)
+  if (liveRelays.length === 0) return null
+
+  const all = await queryRoomEvents(dropId, roomKey, liveRelays)
+  return all.filter(e => e.type === 'DEADMAN')
 }
