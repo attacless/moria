@@ -1693,24 +1693,22 @@ input, textarea { font-family: var(--font-body); }
 
 /* "+" button itself */
 .attach-btn {
-  background:    transparent;
-  border:        1px solid var(--border);
-  border-radius: var(--radius);
-  padding:       9px 16px;
-  color:         rgba(255, 255, 255, 0.5);
-  font-size:     18px;
-  font-weight:   300;
-  line-height:   1;
-  cursor:        pointer;
-  flex-shrink:   0;
-  transition:    color 0.2s, border-color 0.2s;
-  min-width:     44px;
-  text-align:    center;
+  background:  none;
+  border:      none;
+  padding:     4px 8px;
+  color:       rgba(255, 255, 255, 0.3);
+  font-size:   20px;
+  font-weight: 300;
+  line-height: 1;
+  cursor:      pointer;
+  flex-shrink: 0;
+  transition:  color 0.15s;
 }
 .attach-btn:hover,
 .attach-btn.open {
-  color:        rgba(255, 255, 255, 0.8);
-  border-color: var(--border-focus);
+  color:      rgba(255, 255, 255, 0.6);
+  background: none;
+  border:     none;
 }
 
 /* Popover menu anchored above the "+" button */
