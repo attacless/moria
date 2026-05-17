@@ -1,21 +1,28 @@
-let clickAudio:        HTMLAudioElement | null = null
-let notificationAudio: HTMLAudioElement | null = null
+let audioContext: AudioContext | null = null
+let clickBuffer: AudioBuffer | null = null
 
-export function initSounds(): void {
-  clickAudio               = new Audio('/sounds/click.mp3')
-  clickAudio.volume        = 0.3
-  notificationAudio        = new Audio('/sounds/notification.mp3')
-  notificationAudio.volume = 0.4
+export async function initSounds() {
+  try {
+    audioContext = new AudioContext()
+    const response = await fetch('/sounds/click.mp3')
+    const arrayBuffer = await response.arrayBuffer()
+    clickBuffer = await audioContext.decodeAudioData(arrayBuffer)
+  } catch (e) {
+    console.warn('sounds init failed', e)
+  }
 }
 
-export function playClick(): void {
-  if (!clickAudio) return
-  clickAudio.currentTime = 0
-  clickAudio.play().catch(() => {})
+export function playClick() {
+  if (!audioContext || !clickBuffer) return
+  try {
+    if (audioContext.state === 'suspended') audioContext.resume()
+    const source = audioContext.createBufferSource()
+    source.buffer = clickBuffer
+    source.connect(audioContext.destination)
+    source.start(0)
+  } catch (e) {}
 }
 
-export function playNotification(): void {
-  if (!notificationAudio) return
-  notificationAudio.currentTime = 0
-  notificationAudio.play().catch(() => {})
+export function playNotification() {
+  // reserved for future use
 }
