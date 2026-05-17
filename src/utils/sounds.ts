@@ -1,3 +1,5 @@
+const SOUNDS_ENABLED = false
+
 let audioContext: AudioContext | null = null
 let clickBuffer: AudioBuffer | null = null
 
@@ -13,6 +15,7 @@ export async function initSounds() {
 }
 
 export function playClick() {
+  if (!SOUNDS_ENABLED) return
   if (!audioContext || !clickBuffer) return
   try {
     if (audioContext.state === 'suspended') audioContext.resume()
@@ -24,5 +27,6 @@ export function playClick() {
 }
 
 export function playNotification() {
+  if (!SOUNDS_ENABLED) return
   // reserved for future use
 }
