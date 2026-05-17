@@ -196,9 +196,12 @@ export async function deleteDeadDrops(
   }
 }
 
-// Fetches all event IDs for a drop ID without decrypting content.
-// Used by deleteAllDeadDrops to build NIP-09 deletion targets.
-async function fetchDropEventIds(dropId: string): Promise<string[]> {
+// Fetches event IDs eligible for deletion on TERMINATE.
+// Decrypts each event to identify armed DEADMAN switches and skip them.
+// Armed DEADMAN (activateAfter > now) survives TERMINATE - only the
+// 6-character cancellation token can disarm it.
+// Decryption failures are treated as deletable (safe default).
+async function fetchDeletableEventIds(dropId: string, roomKey: Uint8Array): Promise<string[]> {
   const liveRelays = await getLiveRelays(4)
   if (liveRelays.length === 0) return []
 
@@ -217,8 +220,27 @@ async function fetchDropEventIds(dropId: string): Promise<string[]> {
         setTimeout(() => reject(new Error('timeout')), FETCH_TIMEOUT)
       ),
     ])
-    // Deduplicate across relay responses
-    return [...new Set(events.map(e => e.id))]
+
+    const seen      = new Set<string>()
+    const deletable: string[] = []
+
+    await Promise.all(events.map(async event => {
+      if (seen.has(event.id)) return
+      seen.add(event.id)
+      try {
+        const bytes     = Uint8Array.from(atob(event.content), c => c.charCodeAt(0))
+        const decrypted = await decryptMessage(bytes, roomKey)
+        // Armed DEADMAN: skip so it outlives the session
+        if (decrypted?.type === 'DEADMAN' && decrypted.activateAfter && decrypted.activateAfter > now) {
+          return
+        }
+      } catch {
+        // Decryption failed - include for deletion
+      }
+      deletable.push(event.id)
+    }))
+
+    return deletable
   } catch {
     return []
   } finally {
@@ -233,9 +255,10 @@ async function fetchDropEventIds(dropId: string): Promise<string[]> {
 //   - Full wipe on TERMINATE (all relay events, not just this-session receipts)
 export async function deleteAllDeadDrops(
   dropId:     string,
+  roomKey:    Uint8Array,
   signingKey: Uint8Array
 ): Promise<void> {
-  const eventIds = await fetchDropEventIds(dropId)
+  const eventIds = await fetchDeletableEventIds(dropId, roomKey)
   if (eventIds.length === 0) return
 
   const liveRelays = await getLiveRelays(4)

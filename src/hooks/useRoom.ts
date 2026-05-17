@@ -119,7 +119,7 @@ export function useRoom() {
   }>>(new Map())
   // All object URLs created this session - revoked on leave/terminate/panic
   const imageObjectUrls  = useRef<Set<string>>(new Set())
-  const { messages, addMessage, addMessages, clearMessages, burnSecondsRemaining, confirmDeadDrop, autoConfirmDeadDrops, confirmAllDeadDrops, removeByAlias, extendBurnTimers, updateMessageStatus, clearQueuedStatus } = useMessages()
+  const { messages, addMessage, addMessages, clearMessages, burnSecondsRemaining, confirmDeadDrop, autoConfirmDeadDrops, confirmAllDeadDrops, extendBurnTimers, updateMessageStatus, clearQueuedStatus } = useMessages()
   const { alias, rotateAlias } = useAlias()
 
   // Stable ref to messages for queued message dedup - reads latest value at setTimeout fire time
@@ -286,8 +286,33 @@ export function useRoom() {
           setPresenceCount(getRawPeerCount())
         },
 
-        onTerminate: (terminatedAlias: Alias) => {
-          removeByAlias(terminatedAlias)
+        onTerminate: (_terminatedAlias: Alias) => {
+          if (pollIntervalRef.current)  { clearInterval(pollIntervalRef.current);  pollIntervalRef.current  = null }
+          if (deadManPollRef.current)   { clearInterval(deadManPollRef.current);   deadManPollRef.current   = null }
+          seenDropIds.current.clear()
+          deadDropReceipts.current = []
+          typingTimers.current.forEach(t => clearTimeout(t))
+          typingTimers.current.clear()
+          imageChunkBuffer.current.forEach(entry => clearTimeout(entry.timer))
+          imageChunkBuffer.current.clear()
+          imageObjectUrls.current.forEach(url => URL.revokeObjectURL(url))
+          imageObjectUrls.current.clear()
+          stopDecoyEngine()
+          leaveRoom()
+          resetPeerColors()
+          rotateAlias()
+          clearMessages()
+          setPeerCount(0)
+          setPresenceCount(0)
+          setRoomFull(false)
+          setDuressDetected(false)
+          setTypingAliases([])
+          setPendingDeadMans([])
+          sessionRef.current?.signingKey.fill(0)
+          sessionRef.current = null
+          enableCopyPrevention()
+          unmountSecurityMeasures()
+          setScreen('entry')
         },
 
         onRoomFull:     () => setRoomFull(true),
@@ -431,7 +456,7 @@ export function useRoom() {
     } finally {
       setIsJoining(false)
     }
-  }, [addMessage, addMessages, autoConfirmDeadDrops, clearQueuedStatus, extendBurnTimers, removeByAlias, alias, fetchAndAddDrops])
+  }, [addMessage, addMessages, autoConfirmDeadDrops, clearQueuedStatus, extendBurnTimers, clearMessages, rotateAlias, alias, fetchAndAddDrops])
 
   // ── Send ─────────────────────────────────────────────────────────────────
 
@@ -654,8 +679,13 @@ export function useRoom() {
 
     // Fire NIP-09 deletion for ALL drop events - cross-session capable.
     // Signing key zeroed in finally() regardless of success or failure.
-    const deletionPromise = keys
-      ? deleteAllDeadDrops(keys.dropId, keys.signingKey)
+    // roomKey is copied before terminateAndLeave() runs because leaveRoom()
+    // inside terminateAndLeave() zeroes the original Uint8Array in place.
+    // The copy is used only for decryption inside deleteAllDeadDrops and is
+    // garbage collected once the promise resolves.
+    const roomKeyCopy = keys ? new Uint8Array(keys.roomKey) : null
+    const deletionPromise = keys && roomKeyCopy
+      ? deleteAllDeadDrops(keys.dropId, roomKeyCopy, keys.signingKey)
           .catch(() => {})
           .finally(() => { keys.signingKey.fill(0) })
       : Promise.resolve()
