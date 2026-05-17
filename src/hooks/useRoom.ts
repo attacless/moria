@@ -11,6 +11,7 @@ import {
   getRawPeerCount,
   sendRawWire,
   getPeerSessions,
+  getPerPeerWatchwords,
 } from '@transport/room'
 import { startDecoyEngine, stopDecoyEngine } from '@transport/decoy'
 import { webRTCAvailable } from '@/capabilities'
@@ -93,7 +94,6 @@ export function useRoom() {
   const [roomFull, setRoomFull]             = useState(false)
   const [duressDetected, setDuressDetected]       = useState(false)
   const [pendingDeadMans, setPendingDeadMans]     = useState<PendingDeadMan[]>([])
-  const [verifyWords, setVerifyWords]             = useState<string[] | null>(null)
   const lastSentRef                         = useRef<number>(0)
   const lastTypingRef                       = useRef<number>(0)
 
@@ -225,7 +225,6 @@ export function useRoom() {
           setPeerCount(remaining)
           setPresenceCount(getRawPeerCount())
           extendBurnTimers(Date.now() + 6 * 60 * 60 * 1_000)
-          if (remaining === 0) setVerifyWords(null)
         },
 
         onPresenceJoin: (_peerId: PeerId) => {
@@ -242,7 +241,6 @@ export function useRoom() {
 
         onRoomFull:     () => setRoomFull(true),
         onTyping:       (peerAlias: Alias) => handleTypingPeer(peerAlias),
-        onVerifyWords:  (words: string[]) => setVerifyWords(words),
 
         onImageChunk: (imageId: string, chunkIndex: number, totalChunks: number, imageData: string, mimeType: string, peerAlias: Alias) => {
           let entry = imageChunkBuffer.current.get(imageId)
@@ -551,7 +549,6 @@ export function useRoom() {
     enableCopyPrevention()
     sessionRef.current = null
     unmountSecurityMeasures()
-    setVerifyWords(null)
     setScreen('entry')
   }, [clearMessages, rotateAlias])
 
@@ -591,7 +588,6 @@ export function useRoom() {
     enableCopyPrevention()
     sessionRef.current = null
     unmountSecurityMeasures()
-    setVerifyWords(null)
     setScreen('entry')
 
     await deletionPromise
@@ -620,7 +616,6 @@ export function useRoom() {
     setDuressDetected(false)
     setTypingAliases([])
     setPendingDeadMans([])
-    setVerifyWords(null)
     sessionRef.current = null
     // rotateAlias() is intentionally omitted here. document.open() in usePanic
     // destroys the React tree before any state update can flush. Alias
@@ -717,6 +712,6 @@ export function useRoom() {
     armDeadMan,
     cancelDeadMan,
     sendImage,
-    verifyWords,
+    getPerPeerWatchwords,
   }
 }

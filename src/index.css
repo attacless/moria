@@ -1398,6 +1398,39 @@ input, textarea { font-family: var(--font-body); }
   margin: 0 0 4px;
 }
 
+/* Multi-peer watchwords list */
+.verify-peers {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 4px 0;
+}
+
+.verify-peer-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+}
+
+.verify-peer-section + .verify-peer-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.verify-peer-alias {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.3);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.verify-peer-section .verify-word {
+  font-size: 18px;
+  letter-spacing: 3px;
+}
+
 /* Label in revealed dead drop body */
 .deadman-label {
   font-family:   var(--font-mono);

@@ -20,6 +20,13 @@ export interface PeerSession {
   sessionKey: Uint8Array             // ECDH-derived symmetric key for this peer
 }
 
+export interface PeerWatchwords {
+  alias:        Alias
+  peerId:       PeerId
+  words:        string[]
+  hasChatAlias: boolean   // false when alias is a fallback peer ID truncation
+}
+
 export type MessageType = 'TEXT' | 'DECOY' | 'SYSTEM' | 'PUBKEY_HANDSHAKE' | 'TERMINATE' | 'DURESS' | 'TYPING' | 'DEADMAN' | 'IMAGE' | 'IMAGE_CHUNK'
 
 export interface ReplyTo {

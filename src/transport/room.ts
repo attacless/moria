@@ -4,7 +4,7 @@ import { syncDerivePeerSessionKey, syncDecrypt, syncEncrypt, destroyIdentity, de
 import { roundTimestamp } from '@crypto/chacha20'
 import { resetDeadDropRateLimits } from './deadDrop'
 import { deriveVerifyWords } from '@/utils/verifyWords'
-import type { SessionKeys, PeerSession, PeerId, WireMessage, DisplayMessage, Alias, ReplyTo } from '@/types'
+import type { SessionKeys, PeerSession, PeerId, WireMessage, DisplayMessage, Alias, ReplyTo, PeerWatchwords } from '@/types'
 
 // Trystero delivers binary action data as ArrayBuffer regardless of the
 // declared TypeScript generic type. Coerce before any crypto processing.
@@ -26,6 +26,7 @@ const MAX_PEERS = 49  // 50 total including self
 let activeRoom:   Room | null = null
 let sessionKeys:  SessionKeys | null = null
 let peers:        Map<PeerId, PeerSession> = new Map()
+let peerAliases:  Map<PeerId, Alias> = new Map()
 let rawPeerCount: number = 0
 
 let sendPubkey:  ActionSender<Uint8Array> | null = null
@@ -43,7 +44,6 @@ export interface RoomCallbacks {
   onRoomFull:      () => void
   onTyping:        (alias: Alias) => void
   onImageChunk?:   (imageId: string, chunkIndex: number, totalChunks: number, imageData: string, mimeType: string, alias: Alias) => void
-  onVerifyWords?:  (words: string[]) => void  // fired once when first peer completes handshake
 }
 
 export async function joinChatRoom(
@@ -158,16 +158,6 @@ export async function joinChatRoom(
 
       // Now the peer is crypto-confirmed - fire the callback
       callbacks.onPeerJoin(peerId)
-
-      // Derive verification words for the first peer that completes the handshake.
-      // Words are derived from a domain-separated hash of the session key.
-      // Both parties compute the same words (ECDH is commutative - same shared secret).
-      // The session key is NOT exposed outside this module; only the words are.
-      if (callbacks.onVerifyWords && peers.size === 1) {
-        deriveVerifyWords(sessionKey)
-          .then(words => callbacks.onVerifyWords!(words))
-          .catch(err => console.error('[room] verify word derivation failed', err))
-      }
     } catch (err) {
       console.error('[room] key derivation failed for peer', peerId, err)
     }
@@ -185,6 +175,9 @@ export async function joinChatRoom(
     const msg = syncDecrypt(wireBytes, peer.sessionKey)
     if (!msg) return                  // auth failure - silently drop
     if (msg.type === 'DECOY') return  // decoy - silently discard
+
+    // Track alias for on-demand watchword labelling
+    if (msg.alias) peerAliases.set(peerId, msg.alias)
 
     if (msg.type === 'TERMINATE') {
       callbacks.onTerminate(msg.alias)
@@ -242,6 +235,7 @@ export async function joinChatRoom(
       destroyPeerSession(peer.sessionKey)
       peers.delete(peerId)
     }
+    peerAliases.delete(peerId)
     callbacks.onPeerLeave(peerId)
   })
 }
@@ -334,6 +328,7 @@ export function leaveRoom(): void {
 
   peers.forEach((peer) => destroyPeerSession(peer.sessionKey))
   peers.clear()
+  peerAliases.clear()
 
   sendPubkey = null
   sendWire   = null
@@ -376,4 +371,18 @@ export function sendRawWire(data: Uint8Array, targets: PeerId[]): void {
 // Peer session map accessor - used by decoy engine
 export function getPeerSessions(): Map<PeerId, PeerSession> {
   return new Map(peers)
+}
+
+// Derive watchwords for every connected peer on demand.
+// Session keys never leave this module - only the derived word strings are returned.
+// Alias falls back to a truncated peerId if no message has arrived from that peer yet.
+export async function getPerPeerWatchwords(): Promise<PeerWatchwords[]> {
+  const results: PeerWatchwords[] = []
+  for (const [peerId, peer] of peers) {
+    const words        = await deriveVerifyWords(peer.sessionKey)
+    const hasChatAlias = peerAliases.has(peerId)
+    const alias        = peerAliases.get(peerId) ?? peerId.slice(0, 8)
+    results.push({ alias, peerId, words, hasChatAlias })
+  }
+  return results
 }

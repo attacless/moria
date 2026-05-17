@@ -40,7 +40,7 @@ export default function App() {
     armDeadMan,
     cancelDeadMan,
     sendImage,
-    verifyWords,
+    getPerPeerWatchwords,
   } = useRoom()
 
   const [stegoMode, setStegoMode] = useState(false)
@@ -145,7 +145,7 @@ export default function App() {
               onArmDeadMan={armDeadMan}
               onCancelDeadMan={cancelDeadMan}
               onSendImage={sendImage}
-              verifyWords={verifyWords}
+              onGetWatchwords={getPerPeerWatchwords}
             />
           )}
 

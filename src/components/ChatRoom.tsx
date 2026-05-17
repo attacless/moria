@@ -3,7 +3,7 @@ import { InputBar }    from './InputBar'
 import { webRTCAvailable } from '@/capabilities'
 import { getPeerColor } from '@/utils/peerColors'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { DisplayMessage, ReplyTo, Alias, PendingDeadMan } from '@/types'
+import type { DisplayMessage, ReplyTo, Alias, PendingDeadMan, PeerWatchwords } from '@/types'
 
 const DEADMAN_TIMER_OPTIONS = [
   { label: '1H',  seconds: 1  * 60 * 60 },
@@ -46,7 +46,7 @@ interface ChatRoomProps {
   onArmDeadMan?:        (body: string, activateSeconds: number, tokenHash: string) => Promise<boolean>
   onCancelDeadMan?:     (eventId: string) => Promise<void>
   onSendImage?:         (file: File) => void
-  verifyWords?:         string[] | null
+  onGetWatchwords?:     () => Promise<PeerWatchwords[]>
 }
 
 
@@ -72,7 +72,7 @@ export function ChatRoom({
   onArmDeadMan,
   onCancelDeadMan,
   onSendImage,
-  verifyWords,
+  onGetWatchwords,
 }: ChatRoomProps) {
   const [terminating, setTerminating] = useState(false)
 
@@ -100,14 +100,20 @@ export function ChatRoom({
     return () => clearInterval(interval)
   }, [pendingDeadMans.length])
 
-  // Acoustic verification modal
-  const [showVerifyModal, setShowVerifyModal] = useState(false)
+  // Acoustic verification modal - computed on demand, not stored in parent state
+  const [peerWatchwords, setPeerWatchwords] = useState<PeerWatchwords[] | null>(null)
 
   useEffect(() => {
-    if (!showVerifyModal) return
-    const timer = setTimeout(() => setShowVerifyModal(false), 60_000)
+    if (!peerWatchwords) return
+    const timer = setTimeout(() => setPeerWatchwords(null), 60_000)
     return () => clearTimeout(timer)
-  }, [showVerifyModal])
+  }, [peerWatchwords])
+
+  const handleOpenVerify = useCallback(async () => {
+    if (!onGetWatchwords) return
+    const words = await onGetWatchwords()
+    setPeerWatchwords(words)
+  }, [onGetWatchwords])
 
   const openDeadManModal = useCallback(() => {
     setDeadManBody('')
@@ -283,11 +289,11 @@ export function ChatRoom({
         </div>
 
         <div className="header-actions">
-          {peerCount >= 1 && verifyWords && (
+          {peerCount >= 1 && onGetWatchwords && (
             <button
               className="action-btn"
-              onClick={() => setShowVerifyModal(true)}
-              title="Verify connection - read words aloud to confirm no MITM"
+              onClick={handleOpenVerify}
+              title="Verify connection - share watchwords to confirm no MITM"
             >
               VERIFY
             </button>
@@ -506,25 +512,62 @@ export function ChatRoom({
       )}
 
       {/* Acoustic verification modal */}
-      {showVerifyModal && verifyWords && (
+      {peerWatchwords !== null && (
         <div className="modal-backdrop">
           <div className="warn-dialog deadman-dialog">
             <div className="warn-title">WATCHWORDS</div>
-            <div className="warn-body" style={{ textAlign: 'center' }}>
-              Share these four words with your peer over a separate channel. If they match, no one is intercepting your connection.
-            </div>
-            <div className="verify-words">
-              {verifyWords.map((word, i) => (
-                <span key={i} className="verify-word">{word}</span>
-              ))}
-            </div>
-            <div className="verify-hint">
-              These words change every session. A mismatch means your connection may be compromised.
-            </div>
+
+            {peerWatchwords.length === 1 ? (
+              <>
+                <div className="warn-body" style={{ textAlign: 'center' }}>
+                  Share these four words with your peer over a separate channel. If they match, no one is intercepting your connection.
+                </div>
+                <div className="verify-words">
+                  {peerWatchwords[0]!.words.map((word, i) => (
+                    <span key={i} className="verify-word">{word}</span>
+                  ))}
+                </div>
+                <div className="verify-hint">
+                  These words change every session. A mismatch means your connection may be compromised.
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="warn-body" style={{ textAlign: 'center' }}>
+                  Share these words with each peer separately over a different channel. Each connection has unique watchwords.
+                </div>
+                <div className="verify-peers">
+                  {peerWatchwords.map(pw => (
+                    <div key={pw.peerId} className="verify-peer-section">
+                      <span
+                        className="verify-peer-alias"
+                        style={peerWatchwords.length <= 6 ? { color: getPeerColor(pw.alias) } : undefined}
+                      >
+                        {pw.alias}
+                      </span>
+                      <div className="verify-words">
+                        {pw.words.map((word, i) => (
+                          <span key={i} className="verify-word">{word}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="verify-hint">
+                  Each peer has different watchwords. A mismatch on any connection may indicate interception.
+                </div>
+                {peerWatchwords.some(pw => !pw.hasChatAlias) && (
+                  <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', textAlign: 'center', marginTop: '8px' }}>
+                    Peer aliases appear after the first message is exchanged.
+                  </div>
+                )}
+              </>
+            )}
+
             <div className="warn-actions">
               <button
                 className="warn-btn primary"
-                onClick={() => setShowVerifyModal(false)}
+                onClick={() => setPeerWatchwords(null)}
                 type="button"
               >
                 CLOSE
