@@ -106,6 +106,8 @@ export function useRoom() {
   const deadDropReceipts = useRef<DeadDropReceipt[]>([])
   const pollIntervalRef    = useRef<ReturnType<typeof setInterval> | null>(null)
   const deadManPollRef     = useRef<ReturnType<typeof setInterval> | null>(null)
+  const ackQueueRef        = useRef<string[]>([])
+  const ackTimerRef        = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Tracks every dead drop ever displayed this session (alias:timestamp:body).
   // Outlives the burn lifecycle so polls never re-display a burned message.
   // Cleared on leave/terminate/panic alongside other session state.
@@ -297,6 +299,8 @@ export function useRoom() {
           imageChunkBuffer.current.clear()
           imageObjectUrls.current.forEach(url => URL.revokeObjectURL(url))
           imageObjectUrls.current.clear()
+          if (ackTimerRef.current) { clearTimeout(ackTimerRef.current); ackTimerRef.current = null }
+          ackQueueRef.current = []
           stopDecoyEngine()
           leaveRoom()
           resetPeerColors()
@@ -365,6 +369,37 @@ export function useRoom() {
               burnAt:    Date.now() + 5 * 60 * 1_000,
               imageUrl:  url,
             })
+          }
+        },
+
+        // Batched ACK sender: queue the received msgId, start a timer (if not already
+        // running) with a random 300-800ms delay, then send all queued IDs at once.
+        onQueueAck: (msgId: string) => {
+          ackQueueRef.current.push(msgId)
+          if (!ackTimerRef.current) {
+            const delay = 300 + Math.random() * 500
+            ackTimerRef.current = setTimeout(() => {
+              const ids = [...ackQueueRef.current]
+              ackQueueRef.current = []
+              ackTimerRef.current = null
+              if (ids.length > 0) {
+                sendWireMessage({
+                  type:      'ACK',
+                  alias,
+                  timestamp: roundTimestamp(Date.now()),
+                  body:      '',
+                  ackIds:    ids,
+                })
+              }
+            }, delay)
+          }
+        },
+
+        // ACK receipt: find each acked message by msgId and promote to 'read'.
+        onAckReceived: (ackIds: string[]) => {
+          for (const msgId of ackIds) {
+            const found = messagesRef.current.find(m => m.msgId === msgId)
+            if (found) updateMessageStatus(found.id, { ackStatus: 'read' })
           }
         },
       }
@@ -456,7 +491,7 @@ export function useRoom() {
     } finally {
       setIsJoining(false)
     }
-  }, [addMessage, addMessages, autoConfirmDeadDrops, clearQueuedStatus, extendBurnTimers, clearMessages, rotateAlias, alias, fetchAndAddDrops])
+  }, [addMessage, addMessages, autoConfirmDeadDrops, clearQueuedStatus, extendBurnTimers, clearMessages, rotateAlias, alias, fetchAndAddDrops, updateMessageStatus])
 
   // ── Send ─────────────────────────────────────────────────────────────────
 
@@ -645,6 +680,8 @@ export function useRoom() {
     imageChunkBuffer.current.clear()
     imageObjectUrls.current.forEach(url => URL.revokeObjectURL(url))
     imageObjectUrls.current.clear()
+    if (ackTimerRef.current) { clearTimeout(ackTimerRef.current); ackTimerRef.current = null }
+    ackQueueRef.current = []
     stopDecoyEngine()
     leaveRoom()
     resetPeerColors()
@@ -676,6 +713,8 @@ export function useRoom() {
     imageChunkBuffer.current.clear()
     imageObjectUrls.current.forEach(url => URL.revokeObjectURL(url))
     imageObjectUrls.current.clear()
+    if (ackTimerRef.current) { clearTimeout(ackTimerRef.current); ackTimerRef.current = null }
+    ackQueueRef.current = []
 
     // Fire NIP-09 deletion for ALL drop events - cross-session capable.
     // Signing key zeroed in finally() regardless of success or failure.
@@ -723,6 +762,8 @@ export function useRoom() {
     imageChunkBuffer.current.clear()
     imageObjectUrls.current.forEach(url => URL.revokeObjectURL(url))
     imageObjectUrls.current.clear()
+    if (ackTimerRef.current) { clearTimeout(ackTimerRef.current); ackTimerRef.current = null }
+    ackQueueRef.current = []
     stopDecoyEngine()
     leaveRoom()
     resetPeerColors()

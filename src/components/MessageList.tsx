@@ -199,9 +199,23 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
               </div>
             )}
 
-            {/* Meta row: timestamp (left) + burn timer (right) - no alias */}
+            {/* Meta row: timestamp (left) + burn timer (right) */}
             <div className="msg-meta">
-              <span className="msg-time" style={(!isMe && peerCount >= 2 && peerCount <= 6) ? { color: getPeerColor(msg.alias) } : undefined}>{formatTime(msg.timestamp)}</span>
+              <span
+                className="msg-time"
+                style={
+                  isMe && !msg.isDeadDrop
+                    ? {
+                        color:      msg.ackStatus === 'read' ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.2)',
+                        transition: 'color 0.5s ease',
+                      }
+                    : (!isMe && peerCount >= 2 && peerCount <= 6)
+                      ? { color: getPeerColor(msg.alias) }
+                      : undefined
+                }
+              >
+                {formatTime(msg.timestamp)}
+              </span>
               {burn !== null && !(isMe && msg.queuedStatus) && (
                 <span className={`burn-timer ${getBurnClass(burn)}`}>
                   {formatBurn(burn)}

@@ -46,6 +46,8 @@ export interface RoomCallbacks {
   onImageChunk?:       (imageId: string, chunkIndex: number, totalChunks: number, imageData: string, mimeType: string, alias: Alias) => void
   onDeadManArmed?:     (eventId: string, activateAfter: number, tokenHash: string | undefined, alias: Alias, timestamp: number) => void
   onDeadManCancelled?: (eventId: string) => void
+  onQueueAck?:         (msgId: string) => void
+  onAckReceived?:      (ackIds: string[]) => void
 }
 
 export async function joinChatRoom(
@@ -207,6 +209,13 @@ export async function joinChatRoom(
       return
     }
 
+    if (msg.type === 'ACK') {
+      if (callbacks.onAckReceived && msg.ackIds) {
+        callbacks.onAckReceived(msg.ackIds)
+      }
+      return
+    }
+
     if (msg.type === 'IMAGE_CHUNK') {
       if (
         callbacks.onImageChunk &&
@@ -235,6 +244,11 @@ export async function joinChatRoom(
       isMine:    false,
       burnAt:    Date.now() + 5 * 60 * 1000,
       ...(msg.replyTo ? { replyTo: msg.replyTo } : {}),
+    }
+
+    // Queue a batched ACK for TEXT messages that carry a msgId
+    if (msg.type === 'TEXT' && msg.msgId && callbacks.onQueueAck) {
+      callbacks.onQueueAck(msg.msgId)
     }
 
     callbacks.onMessage(display)
@@ -266,11 +280,16 @@ export function sendChatMessage(
 ): DisplayMessage | null {
   if (!activeRoom || !sendWire || peers.size === 0) return null
 
+  // 8-char hex delivery token - lets ACK replies find this message later
+  const msgId = Array.from(crypto.getRandomValues(new Uint8Array(4)))
+    .map(b => b.toString(16).padStart(2, '0')).join('')
+
   const wire: WireMessage = {
     type:      'TEXT',
     alias,
     timestamp: roundTimestamp(Date.now()),
     body,
+    msgId,
     ...(replyTo ? { replyTo } : {}),
   }
 
@@ -291,6 +310,8 @@ export function sendChatMessage(
     body,
     isMine:    true,
     burnAt:    Date.now() + 5 * 60 * 1000,
+    msgId,
+    ackStatus: 'sent',
     ...(replyTo ? { replyTo } : {}),
   }
 }
