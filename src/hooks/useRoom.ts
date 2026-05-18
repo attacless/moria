@@ -1058,9 +1058,8 @@ export function useRoom() {
     if (getPeerCount() === 0) return
 
     const cleanBlob = await stripExif(file)
-    const cleanFile = new File([cleanBlob], file.name, { type: cleanBlob.type })
 
-    const { imageId, mimeType, chunks } = await chunkImage(cleanFile)
+    const { imageId, mimeType, chunks } = await chunkImage(cleanBlob)
     const totalChunks = chunks.length
     const ts = roundTimestamp(Date.now())
 

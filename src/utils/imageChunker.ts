@@ -8,7 +8,7 @@ const CHUNK_SIZE = 6_000
 const ENCODE_BATCH = 8_192
 
 export async function chunkImage(
-  file: File
+  file: File | Blob
 ): Promise<{ imageId: string; mimeType: string; chunks: string[] }> {
   const imageId = crypto.randomUUID().substring(0, 8)
   const buffer  = await file.arrayBuffer()
