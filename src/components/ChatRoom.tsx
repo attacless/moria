@@ -328,8 +328,14 @@ export function ChatRoom({
   const [replyTo, setReplyTo] = useState<ReplyTo | null>(null)
 
   const handleSelectReply = useCallback((msg: DisplayMessage) => {
-    const body = msg.imageUrl ? 'Image' : msg.audioUrl ? 'Voice message' : msg.body.slice(0, 100)
-    setReplyTo({ id: msg.id, body, alias: msg.alias })
+    const body = msg.imageUrl ? (msg.body || 'Image') : msg.audioUrl ? 'Voice message' : msg.body.slice(0, 100)
+    setReplyTo({
+      id:    msg.id,
+      body,
+      alias: msg.alias,
+      msgId: msg.id,
+      ...(msg.imageUrl ? { imageUrl: msg.imageUrl } : {}),
+    })
   }, [])
 
   const handleCancelReply = useCallback(() => setReplyTo(null), [])

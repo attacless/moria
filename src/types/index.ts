@@ -30,9 +30,11 @@ export interface PeerWatchwords {
 export type MessageType = 'TEXT' | 'DECOY' | 'SYSTEM' | 'PUBKEY_HANDSHAKE' | 'TERMINATE' | 'DURESS' | 'TYPING' | 'DEADMAN' | 'IMAGE' | 'IMAGE_CHUNK' | 'DEADMAN_ARMED' | 'DEADMAN_CANCELLED' | 'ACK' | 'VOICE' | 'VOICE_CHUNK' | 'TEXT_CHUNK'
 
 export interface ReplyTo {
-  id:    string
-  body:  string
-  alias: Alias
+  id:        string
+  body:      string
+  alias:     Alias
+  imageUrl?: string
+  msgId?:    string
 }
 
 export interface WireMessage {

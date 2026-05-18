@@ -806,15 +806,36 @@ input, textarea { font-family: var(--font-body); }
 }
 
 .msg-reply-quote {
-  font-size: 12px;
-  color: rgba(255,255,255,0.4);
+  font-size:   12px;
+  color:       rgba(255,255,255,0.4);
   border-left: 2px solid rgba(255,255,255,0.08);
   padding-left: 8px;
   margin-bottom: 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow:    hidden;
   font-family: var(--font-body);
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+  cursor:      pointer;
+}
+
+.msg-reply-thumb {
+  height:        24px;
+  width:         auto;
+  border-radius: 4px;
+  flex-shrink:   0;
+  object-fit:    cover;
+}
+
+.msg-reply-image-label {
+  color: rgba(255,255,255,0.3);
+}
+
+.msg-reply-quote-body {
+  overflow:      hidden;
+  text-overflow: ellipsis;
+  white-space:   nowrap;
+  min-width:     0;
 }
 
 .msg-meta {
@@ -2049,6 +2070,7 @@ input, textarea { font-family: var(--font-body); }
 /* ═══════════════════════════════════
    KEYFRAMES
    ═══════════════════════════════════ */
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }

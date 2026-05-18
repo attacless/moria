@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { DisplayMessage } from '@/types'
+import type { DisplayMessage, ReplyTo } from '@/types'
 import { getPeerColor } from '@/utils/peerColors'
 import { playClick } from '@/utils/sounds'
 import { linkifyText } from '@/utils/linkify'
@@ -65,6 +65,25 @@ function LongBodyPreview({ body, onOpen }: { body: string; onOpen: () => void })
   )
 }
 
+function ReplyQuote({ replyTo, onScrollTo }: { replyTo: ReplyTo; onScrollTo: () => void }) {
+  return (
+    <div
+      className="msg-reply-quote"
+      onClick={e => { e.stopPropagation(); onScrollTo() }}
+    >
+      {replyTo.imageUrl && (
+        <img src={replyTo.imageUrl} className="msg-reply-thumb" alt="" />
+      )}
+      <span className="msg-reply-quote-body">
+        {replyTo.imageUrl && (!replyTo.body || replyTo.body === 'Image')
+          ? <span className="msg-reply-image-label">Image</span>
+          : linkifyText(truncate(replyTo.body))
+        }
+      </span>
+    </div>
+  )
+}
+
 export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirmDeadDrop, hasPeers: _hasPeers, peerCount, collapsedDrops, onToggleDropCollapse, onSelectReply }: MessageListProps) {
   const bottomRef    = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -113,6 +132,15 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  const scrollToMessage = useCallback((targetId: string) => {
+    const el = containerRef.current?.querySelector(`[data-msg-id="${targetId}"]`)
+    if (!el) return
+    const rect      = el.getBoundingClientRect()
+    const container = containerRef.current?.getBoundingClientRect()
+    if (container && rect.top >= container.top && rect.bottom <= container.bottom) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [])
+
   return (
     <div
       ref={containerRef}
@@ -145,6 +173,7 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
           return (
             <div
               key={msg.id}
+              data-msg-id={msg.id}
               className="message received dead-drop-collapsed fade-in"
               onClick={() => { playClick(); handleReveal(msg.id, true) }}
             >
@@ -171,6 +200,7 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
           return (
             <div
               key={msg.id}
+              data-msg-id={msg.id}
               className={`message received dead-drop-revealed fade-in${isOpen ? ' dead-drop-open' : ''}`}
               style={{ opacity, transition, cursor: 'pointer' }}
               onClick={() => { playClick(); handleReveal(msg.id, false) }}
@@ -213,6 +243,7 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
         return (
           <div
             key={msg.id}
+            data-msg-id={msg.id}
             className={`message ${isMe ? 'own' : 'received'}${msg.imageUrl ? ' has-image' : ''}`}
             style={{ opacity, transition, cursor: onSelectReply ? 'pointer' : undefined }}
             onClick={() => { if (onSelectReply) { onSelectReply(msg) } }}
@@ -220,9 +251,10 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
             {msg.imageUrl ? (
               <>
                 {msg.replyTo && (
-                  <div className="msg-reply-quote">
-                    {linkifyText(truncate(msg.replyTo.body))}
-                  </div>
+                  <ReplyQuote
+                    replyTo={msg.replyTo}
+                    onScrollTo={() => scrollToMessage(msg.replyTo!.msgId ?? msg.replyTo!.id)}
+                  />
                 )}
                 <div className="msg-image-wrap">
                   <img
@@ -255,9 +287,10 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
             ) : (
               <>
                 {msg.replyTo && (
-                  <div className="msg-reply-quote">
-                    {linkifyText(truncate(msg.replyTo.body))}
-                  </div>
+                  <ReplyQuote
+                    replyTo={msg.replyTo}
+                    onScrollTo={() => scrollToMessage(msg.replyTo!.msgId ?? msg.replyTo!.id)}
+                  />
                 )}
 
                 {/* Meta row: timestamp (left) + burn timer (right) */}
