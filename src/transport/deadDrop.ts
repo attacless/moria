@@ -354,6 +354,11 @@ type DropEvent = {
   voiceAudioData?:     string
   voiceMimeType?:      string
   voiceAudioDuration?: number
+  // TEXT_CHUNK fields
+  textChunkId?:        string
+  textChunkIndex?:     number
+  textTotalChunks?:    number
+  replyTo?:            import('@/types').ReplyTo
 }
 
 export type { DropEvent }
@@ -383,12 +388,17 @@ async function queryRoomEvents(dropId: string, roomKey: Uint8Array, liveRelays: 
         ...(decrypted.activateAfter    ? { activateAfter:      decrypted.activateAfter }    : {}),
         ...(decrypted.tokenHash        ? { tokenHash:          decrypted.tokenHash }        : {}),
         // VOICE_CHUNK fields - reuses WireMessage imageId/imageData/chunkIndex/totalChunks/mimeType
-        ...(decrypted.imageId      !== undefined ? { voiceId:            decrypted.imageId }         : {}),
-        ...(decrypted.chunkIndex   !== undefined ? { voiceChunkIndex:    decrypted.chunkIndex }       : {}),
-        ...(decrypted.totalChunks  !== undefined ? { voiceTotalChunks:   decrypted.totalChunks }      : {}),
-        ...(decrypted.imageData    !== undefined ? { voiceAudioData:     decrypted.imageData }        : {}),
-        ...(decrypted.mimeType     !== undefined ? { voiceMimeType:      decrypted.mimeType }         : {}),
-        ...(decrypted.audioDuration !== undefined ? { voiceAudioDuration: decrypted.audioDuration }   : {}),
+        ...(decrypted.type === 'VOICE_CHUNK' && decrypted.imageId      !== undefined ? { voiceId:            decrypted.imageId }         : {}),
+        ...(decrypted.type === 'VOICE_CHUNK' && decrypted.chunkIndex   !== undefined ? { voiceChunkIndex:    decrypted.chunkIndex }       : {}),
+        ...(decrypted.type === 'VOICE_CHUNK' && decrypted.totalChunks  !== undefined ? { voiceTotalChunks:   decrypted.totalChunks }      : {}),
+        ...(decrypted.type === 'VOICE_CHUNK' && decrypted.imageData    !== undefined ? { voiceAudioData:     decrypted.imageData }        : {}),
+        ...(decrypted.type === 'VOICE_CHUNK' && decrypted.mimeType     !== undefined ? { voiceMimeType:      decrypted.mimeType }         : {}),
+        ...(decrypted.type === 'VOICE_CHUNK' && decrypted.audioDuration !== undefined ? { voiceAudioDuration: decrypted.audioDuration }   : {}),
+        // TEXT_CHUNK fields - reuses WireMessage imageId/chunkIndex/totalChunks; body carries chunk text
+        ...(decrypted.type === 'TEXT_CHUNK' && decrypted.imageId     !== undefined ? { textChunkId:    decrypted.imageId }    : {}),
+        ...(decrypted.type === 'TEXT_CHUNK' && decrypted.chunkIndex  !== undefined ? { textChunkIndex:  decrypted.chunkIndex } : {}),
+        ...(decrypted.type === 'TEXT_CHUNK' && decrypted.totalChunks !== undefined ? { textTotalChunks: decrypted.totalChunks }: {}),
+        ...(decrypted.type === 'TEXT_CHUNK' && decrypted.replyTo     !== undefined ? { replyTo:         decrypted.replyTo }   : {}),
       })
     } catch {
       // malformed - skip
@@ -533,6 +543,73 @@ export async function publishVoiceChunks(
       events.flatMap(event => liveRelays.map(url => pool.publish([url], event)))
     )
     const anySuccess = results.some(r => r.status === 'fulfilled')
+    return { success: anySuccess, eventIds }
+  } finally {
+    pool.close(liveRelays)
+  }
+}
+
+// ── Text chunk batch publisher ────────────────────────────────────────────────
+// Publishes all chunks of a long text message as separate Nostr events.
+// Does not apply the per-message 5s rate limiter (batch operation).
+// Each chunk reuses the imageId/chunkIndex/totalChunks WireMessage fields;
+// body carries the chunk text directly (no base64 encoding needed).
+export async function publishTextChunks(
+  chunks:     string[],
+  chunkId:    string,
+  alias:      Alias,
+  dropId:     string,
+  roomKey:    Uint8Array,
+  signingKey: Uint8Array,
+  ttlSeconds: number,
+  replyTo?:   import('@/types').ReplyTo
+): Promise<{ success: boolean; eventIds: string[] }> {
+  const liveRelays = await getLiveRelays(4)
+  if (liveRelays.length === 0) return { success: false, eventIds: [] }
+
+  const now        = Math.floor(Date.now() / 1000)
+  const expiration = now + ttlSeconds
+  const eventIds:  string[] = []
+  const events:    ReturnType<typeof finalizeEvent>[] = []
+
+  for (let i = 0; i < chunks.length; i++) {
+    const wire: WireMessage = {
+      type:        'TEXT_CHUNK',
+      alias,
+      timestamp:   roundTimestamp(Date.now()),
+      body:        chunks[i]!,
+      imageId:     chunkId,
+      chunkIndex:  i,
+      totalChunks: chunks.length,
+      ...(i === 0 && replyTo ? { replyTo } : {}),
+    }
+
+    const encrypted = await encryptMessage(wire, roomKey)
+    const b64       = btoa(Array.from(encrypted, b => String.fromCharCode(b)).join(''))
+    const jitter    = Math.floor(Math.random() * 121)
+
+    const event = finalizeEvent(
+      {
+        kind:       EVENT_KIND,
+        created_at: now - jitter,
+        tags:       [['r', dropId], ['expiration', String(expiration)]],
+        content:    b64,
+      },
+      signingKey
+    )
+
+    eventIds.push(event.id)
+    events.push(event)
+  }
+
+  lastPublishTime = Date.now()
+
+  const pool = new SimplePool()
+  try {
+    const allResults = await Promise.allSettled(
+      events.flatMap(event => liveRelays.map(url => pool.publish([url], event)))
+    )
+    const anySuccess = allResults.some(r => r.status === 'fulfilled')
     return { success: anySuccess, eventIds }
   } finally {
     pool.close(liveRelays)

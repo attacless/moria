@@ -1,4 +1,4 @@
-import { mountCopyPrevention, unmountCopyPrevention, disableCopyPrevention, enableCopyPrevention } from './copyPrevention'
+import { mountCopyPrevention, unmountCopyPrevention } from './copyPrevention'
 import { mountScreenshotPrevention, unmountScreenshotPrevention } from './screenshotPrevention'
 
 export function mountSecurityMeasures(): void {
@@ -10,5 +10,3 @@ export function unmountSecurityMeasures(): void {
   unmountCopyPrevention()
   unmountScreenshotPrevention()
 }
-
-export { disableCopyPrevention, enableCopyPrevention }

@@ -27,7 +27,7 @@ export interface PeerWatchwords {
   hasChatAlias: boolean   // false when alias is a fallback peer ID truncation
 }
 
-export type MessageType = 'TEXT' | 'DECOY' | 'SYSTEM' | 'PUBKEY_HANDSHAKE' | 'TERMINATE' | 'DURESS' | 'TYPING' | 'DEADMAN' | 'IMAGE' | 'IMAGE_CHUNK' | 'DEADMAN_ARMED' | 'DEADMAN_CANCELLED' | 'ACK' | 'VOICE' | 'VOICE_CHUNK'
+export type MessageType = 'TEXT' | 'DECOY' | 'SYSTEM' | 'PUBKEY_HANDSHAKE' | 'TERMINATE' | 'DURESS' | 'TYPING' | 'DEADMAN' | 'IMAGE' | 'IMAGE_CHUNK' | 'DEADMAN_ARMED' | 'DEADMAN_CANCELLED' | 'ACK' | 'VOICE' | 'VOICE_CHUNK' | 'TEXT_CHUNK'
 
 export interface ReplyTo {
   id:    string

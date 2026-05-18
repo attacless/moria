@@ -17,8 +17,9 @@ function toBytes(data: unknown): Uint8Array {
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
-const APP_ID   = 'moria-chat-v1'
-const MAX_PEERS = 49  // 50 total including self
+const APP_ID         = 'moria-chat-v1'
+const MAX_PEERS      = 49    // 50 total including self
+const TEXT_CHUNK_SIZE = 4000  // chars per TEXT_CHUNK packet
 
 
 // ── State (module-scoped, wiped on leave) ───────────────────────────────────
@@ -45,6 +46,7 @@ export interface RoomCallbacks {
   onTyping:            (alias: Alias) => void
   onImageChunk?:       (imageId: string, chunkIndex: number, totalChunks: number, imageData: string, mimeType: string, alias: Alias) => void
   onVoiceChunk?:       (voiceId: string, chunkIndex: number, totalChunks: number, audioData: string, mimeType: string, audioDuration: number, alias: Alias) => void
+  onTextChunk?:        (chunkId: string, chunkIndex: number, totalChunks: number, chunkText: string, alias: Alias, timestamp: number, replyTo?: ReplyTo) => void
   onDeadManArmed?:     (eventId: string, activateAfter: number, tokenHash: string | undefined, alias: Alias, timestamp: number) => void
   onDeadManCancelled?: (eventId: string) => void
   onQueueAck?:         (msgId: string) => void
@@ -258,6 +260,26 @@ export async function joinChatRoom(
       return
     }
 
+    if (msg.type === 'TEXT_CHUNK') {
+      if (
+        callbacks.onTextChunk &&
+        msg.imageId     !== undefined &&
+        msg.chunkIndex  !== undefined &&
+        msg.totalChunks !== undefined
+      ) {
+        callbacks.onTextChunk(
+          msg.imageId,
+          msg.chunkIndex,
+          msg.totalChunks,
+          msg.body,
+          msg.alias,
+          msg.timestamp,
+          msg.replyTo,
+        )
+      }
+      return
+    }
+
     const display: DisplayMessage = {
       id:        crypto.randomUUID(),
       alias:     msg.alias,
@@ -302,10 +324,44 @@ export function sendChatMessage(
 ): DisplayMessage | null {
   if (!activeRoom || !sendWire || peers.size === 0) return null
 
-  // 8-char hex delivery token - lets ACK replies find this message later
   const msgId = Array.from(crypto.getRandomValues(new Uint8Array(4)))
     .map(b => b.toString(16).padStart(2, '0')).join('')
 
+  // Long body: split into TEXT_CHUNK frames
+  if (body.length > TEXT_CHUNK_SIZE) {
+    const chunkId = crypto.randomUUID()
+    const chunks: string[] = []
+    for (let i = 0; i < body.length; i += TEXT_CHUNK_SIZE) {
+      chunks.push(body.slice(i, i + TEXT_CHUNK_SIZE))
+    }
+    const ts = roundTimestamp(Date.now())
+    for (let i = 0; i < chunks.length; i++) {
+      const wire: WireMessage = {
+        type:        'TEXT_CHUNK',
+        alias,
+        timestamp:   ts,
+        body:        chunks[i]!,
+        imageId:     chunkId,
+        chunkIndex:  i,
+        totalChunks: chunks.length,
+        ...(i === 0 && replyTo ? { replyTo } : {}),
+      }
+      sendWireMessage(wire)
+    }
+    return {
+      id:        crypto.randomUUID(),
+      alias:     myAlias,
+      timestamp: ts,
+      body,
+      isMine:    true,
+      burnAt:    Date.now() + 5 * 60 * 1000,
+      msgId,
+      ackStatus: 'sent',
+      ...(replyTo ? { replyTo } : {}),
+    }
+  }
+
+  // Short body: single TEXT message
   const wire: WireMessage = {
     type:      'TEXT',
     alias,
@@ -315,7 +371,6 @@ export function sendChatMessage(
     ...(replyTo ? { replyTo } : {}),
   }
 
-  // Encrypt separately for each peer and unicast - never broadcast raw key
   peers.forEach((peer, peerId) => {
     try {
       const encrypted = syncEncrypt(wire, peer.sessionKey)

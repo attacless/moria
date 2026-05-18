@@ -218,6 +218,11 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
 
     const trimmed = value.trim()
     if (!trimmed) return
+    if (trimmed.length > 50_000) {
+      setMediaBlockedMsg('message too long (max 50,000 characters)')
+      setTimeout(() => setMediaBlockedMsg(null), 4_000)
+      return
+    }
     playClick()
     onSend(trimmed, ttlSecs)
     setValue('')

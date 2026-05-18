@@ -48,13 +48,31 @@ function getBurnClass(secs: number): string {
   return ''
 }
 
+const LONG_BODY_THRESHOLD  = 500    // chars: show collapsed preview
+const LONG_BODY_PREVIEW    = 200    // chars to show in collapsed state
+
+function isLongBody(body: string): boolean {
+  return body.length >= LONG_BODY_THRESHOLD
+}
+
+function LongBodyPreview({ body, onOpen }: { body: string; onOpen: () => void }) {
+  return (
+    <div className="long-body-preview" onClick={e => { e.stopPropagation(); onOpen() }}>
+      <span className="long-body-text">{body.slice(0, LONG_BODY_PREVIEW)}</span>
+      <span className="long-body-fade" />
+      <span className="long-body-tap">TAP TO READ</span>
+    </div>
+  )
+}
+
 export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirmDeadDrop, hasPeers: _hasPeers, peerCount, collapsedDrops, onToggleDropCollapse, onSelectReply }: MessageListProps) {
   const bottomRef    = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const prevCountRef = useRef(messages.length)
   const isAtBottomRef = useRef(true)
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
-  const [unseenCount, setUnseenCount] = useState(0)
+  const [lightboxUrl, setLightboxUrl]     = useState<string | null>(null)
+  const [textReaderMsg, setTextReaderMsg] = useState<DisplayMessage | null>(null)
+  const [unseenCount, setUnseenCount]     = useState(0)
 
   const handleScroll = useCallback(() => {
     const el = containerRef.current
@@ -178,7 +196,9 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
                   )}
                   {msg.audioUrl
                     ? <VoicePlayer audioUrl={msg.audioUrl} duration={msg.audioDuration ?? 0} />
-                    : <div className="msg-body">{linkifyText(msg.body)}</div>
+                    : isLongBody(msg.body)
+                      ? <LongBodyPreview body={msg.body} onOpen={() => setTextReaderMsg(msg)} />
+                      : <div className="msg-body">{linkifyText(msg.body)}</div>
                   }
                 </div>
               )}
@@ -240,7 +260,9 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
                     onClick={e => { e.stopPropagation(); playClick(); setLightboxUrl(msg.imageUrl!) }}
                   />
                 )
-                : <div className="msg-body">{linkifyText(msg.body)}</div>
+                : isLongBody(msg.body)
+                  ? <LongBodyPreview body={msg.body} onOpen={() => setTextReaderMsg(msg)} />
+                  : <div className="msg-body">{linkifyText(msg.body)}</div>
             }
 
             {/* Footer: status text */}
@@ -276,6 +298,28 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
             alt="fullscreen"
             onClick={e => e.stopPropagation()}
           />
+        </div>
+      )}
+
+      {textReaderMsg && (
+        <div
+          className="text-reader-overlay"
+          onClick={() => { playClick(); setTextReaderMsg(null) }}
+        >
+          <div
+            className="text-reader-content"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              className="text-reader-close"
+              onClick={() => { playClick(); setTextReaderMsg(null) }}
+              type="button"
+              aria-label="Close"
+            >
+              {'✕'}
+            </button>
+            {textReaderMsg.body}
+          </div>
         </div>
       )}
     </div>
