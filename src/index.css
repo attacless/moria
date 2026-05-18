@@ -858,6 +858,7 @@ input, textarea { font-family: var(--font-body); }
   color: var(--text-primary);
   font-weight: 400;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .msg-link {
