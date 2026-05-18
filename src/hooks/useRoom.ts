@@ -24,6 +24,7 @@ import type { PublishResult } from '@transport/deadDrop'
 import { roundTimestamp } from '@crypto/chacha20'
 import { mountSecurityMeasures, unmountSecurityMeasures } from '@/security'
 import { chunkImage, chunkBlob, reassembleChunks, IMAGE_MAX_BYTES } from '@/utils/imageChunker'
+import { stripExif } from '@/utils/stripExif'
 import { cancelRecording } from '@/utils/voiceRecorder'
 import { SECS_PER_CHUNK } from '@components/VoicePlayer'
 import { useMessages } from './useMessages'
@@ -1056,7 +1057,10 @@ export function useRoom() {
     if (file.size > IMAGE_MAX_BYTES) return
     if (getPeerCount() === 0) return
 
-    const { imageId, mimeType, chunks } = await chunkImage(file)
+    const cleanBlob = await stripExif(file)
+    const cleanFile = new File([cleanBlob], file.name, { type: cleanBlob.type })
+
+    const { imageId, mimeType, chunks } = await chunkImage(cleanFile)
     const totalChunks = chunks.length
     const ts = roundTimestamp(Date.now())
 
@@ -1074,8 +1078,8 @@ export function useRoom() {
       })
     }
 
-    // Show sender's own image immediately via object URL from the original File
-    const url = URL.createObjectURL(file)
+    // Show sender's own image immediately via object URL from the clean (EXIF-stripped) blob
+    const url = URL.createObjectURL(cleanBlob)
     imageObjectUrls.current.add(url)
     addMessage({
       id:        crypto.randomUUID(),
