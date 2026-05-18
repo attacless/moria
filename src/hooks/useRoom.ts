@@ -1076,6 +1076,9 @@ export function useRoom() {
         imageData:   chunks[i]!,
         ...(i === 0 ? { mimeType } : {}),
       })
+      if (i < chunks.length - 1) {
+        await new Promise<void>(r => setTimeout(r, 15))
+      }
     }
 
     // Show sender's own image immediately via object URL from the clean (EXIF-stripped) blob
@@ -1114,6 +1117,9 @@ export function useRoom() {
         mimeType:    i === 0 ? mimeType : '',
         ...(i === 0 ? { audioDuration: duration } : {}),
       })
+      if (i < chunks.length - 1) {
+        await new Promise<void>(r => setTimeout(r, 15))
+      }
     }
 
     const url = URL.createObjectURL(blob)

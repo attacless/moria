@@ -532,6 +532,9 @@ export async function publishVoiceChunks(
 
     eventIds.push(event.id)
     events.push(event)
+    if (i < chunks.length - 1) {
+      await new Promise<void>(r => setTimeout(r, 15))
+    }
   }
 
   // Block immediate TEXT publish after this batch
@@ -600,6 +603,9 @@ export async function publishTextChunks(
 
     eventIds.push(event.id)
     events.push(event)
+    if (i < chunks.length - 1) {
+      await new Promise<void>(r => setTimeout(r, 15))
+    }
   }
 
   lastPublishTime = Date.now()
