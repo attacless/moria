@@ -48,7 +48,7 @@ interface ChatRoomProps {
   pendingDeadMans?:     PendingDeadMan[]
   onArmDeadMan?:        (body: string, activateSeconds: number, tokenHash: string, voiceBlob?: Blob, voiceDuration?: number) => Promise<boolean>
   onCancelDeadMan?:     (eventId: string) => Promise<void>
-  onSendImage?:         (file: File) => void
+  onSendImage?:         (file: File, replyTo?: ReplyTo) => void
   onSendVoice?:         (blob: Blob, duration: number) => void
   onSendVoiceDeadDrop?: (blob: Blob, duration: number, ttlSeconds: number) => void
   onGetWatchwords?:     () => Promise<PeerWatchwords[]>
@@ -339,6 +339,11 @@ export function ChatRoom({
     setReplyTo(null)
   }, [onSend, replyTo])
 
+  const handleSendImage = useCallback((file: File) => {
+    onSendImage?.(file, replyTo ?? undefined)
+    setReplyTo(null)
+  }, [onSendImage, replyTo])
+
   const handleTyping = useCallback(() => { onTyping?.() }, [onTyping])
 
   // Connection unavailable modal - appears after 20s of continuous waiting
@@ -556,7 +561,7 @@ export function ChatRoom({
         onCancelReply={handleCancelReply}
         onTyping={handleTyping}
         {...(onArmDeadMan       ? { onOpenDeadMan: openDeadManModal }                                                   : {})}
-        {...(onSendImage        ? { onSendImage }                                                                       : {})}
+        {...(onSendImage        ? { onSendImage: handleSendImage }                                                       : {})}
         {...(isSendingMedia    !== undefined ? { isSendingMedia }   : {})}
         {...(mediaSendProgress !== undefined ? { mediaSendProgress } : {})}
         {...(peerCount > 0 && onSendVoice

@@ -127,6 +127,7 @@ export function useRoom() {
     chunks:      Map<number, string>
     totalChunks: number
     mimeType:    string
+    replyTo?:    ReplyTo
     timer:       ReturnType<typeof setTimeout>
   }>>(new Map())
   // All object URLs created this session (images + audio) - revoked on leave/terminate/panic
@@ -618,7 +619,7 @@ export function useRoom() {
           setPendingDeadMans(prev => prev.filter(d => d.eventId !== eventId))
         },
 
-        onImageChunk: (imageId: string, chunkIndex: number, totalChunks: number, imageData: string, mimeType: string, peerAlias: Alias) => {
+        onImageChunk: (imageId: string, chunkIndex: number, totalChunks: number, imageData: string, mimeType: string, peerAlias: Alias, replyTo?: ReplyTo) => {
           let entry = imageChunkBuffer.current.get(imageId)
           if (!entry) {
             const timer = setTimeout(() => {
@@ -628,7 +629,8 @@ export function useRoom() {
             imageChunkBuffer.current.set(imageId, entry)
           }
           entry.chunks.set(chunkIndex, imageData)
-          if (mimeType) entry.mimeType = mimeType  // only chunk 0 carries this
+          if (mimeType) entry.mimeType = mimeType          // only chunk 0 carries this
+          if (replyTo && !entry.replyTo) entry.replyTo = replyTo  // only chunk 0 carries this
 
           if (entry.chunks.size === entry.totalChunks) {
             clearTimeout(entry.timer)
@@ -643,6 +645,7 @@ export function useRoom() {
               isMine:    false,
               burnAt:    Date.now() + 5 * 60 * 1_000,
               imageUrl:  url,
+              ...(entry.replyTo ? { replyTo: entry.replyTo } : {}),
             })
           }
         },
@@ -1055,7 +1058,7 @@ export function useRoom() {
 
   // ── Image send ──────────────────────────────────────────────────────────
 
-  const sendImage = useCallback(async (file: File): Promise<void> => {
+  const sendImage = useCallback(async (file: File, replyTo?: ReplyTo): Promise<void> => {
     if (file.size > IMAGE_MAX_BYTES) return
     if (getPeerCount() === 0) return
 
@@ -1079,6 +1082,7 @@ export function useRoom() {
         totalChunks,
         imageData:   chunks[i]!,
         ...(i === 0 ? { mimeType } : {}),
+        ...(i === 0 && replyTo ? { replyTo } : {}),
       })
       setMediaSendProgress((i + 1) / totalChunks)
       if (i < chunks.length - 1) {
@@ -1099,6 +1103,7 @@ export function useRoom() {
       isMine:    true,
       burnAt:    Date.now() + 5 * 60 * 1_000,
       imageUrl:  url,
+      ...(replyTo ? { replyTo } : {}),
     })
   }, [alias, addMessage])
 

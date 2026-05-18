@@ -217,65 +217,94 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
             style={{ opacity, transition, cursor: onSelectReply ? 'pointer' : undefined }}
             onClick={() => { if (onSelectReply) { onSelectReply(msg) } }}
           >
-            {/* Quoted reply */}
-            {msg.replyTo && (
-              <div className="msg-reply-quote">
-                {linkifyText(truncate(msg.replyTo.body))}
-              </div>
-            )}
-
-            {/* Meta row: timestamp (left) + burn timer (right) */}
-            <div className="msg-meta">
-              <span
-                className="msg-time"
-                style={
-                  isMe && !msg.isDeadDrop
-                    ? {
-                        color:      msg.ackStatus === 'read' ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.2)',
-                        transition: 'color 0.5s ease',
-                      }
-                    : (!isMe && peerCount >= 2 && peerCount <= 6)
-                      ? { color: getPeerColor(msg.alias) }
-                      : undefined
-                }
-              >
-                {formatTime(msg.timestamp)}
-              </span>
-              {burn !== null && !(isMe && msg.queuedStatus) && (
-                <span className={`burn-timer ${getBurnClass(burn)}`}>
-                  {formatBurn(burn)}
-                </span>
-              )}
-            </div>
-
-            {/* Body */}
-            {msg.audioUrl
-              ? <VoicePlayer audioUrl={msg.audioUrl} duration={msg.audioDuration ?? 0} />
-              : msg.imageUrl
-                ? (
+            {msg.imageUrl ? (
+              <>
+                {msg.replyTo && (
+                  <div className="msg-reply-quote">
+                    {linkifyText(truncate(msg.replyTo.body))}
+                  </div>
+                )}
+                <div className="msg-image-wrap">
                   <img
                     src={msg.imageUrl}
                     className="msg-image"
                     alt="shared image"
                     onClick={e => { e.stopPropagation(); playClick(); setLightboxUrl(msg.imageUrl!) }}
                   />
-                )
-                : isLongBody(msg.body)
-                  ? <LongBodyPreview body={msg.body} onOpen={() => setTextReaderMsg(msg)} />
-                  : <div className="msg-body">{linkifyText(msg.body)}</div>
-            }
+                  <div className="msg-image-meta">
+                    <span
+                      className="msg-time"
+                      style={
+                        isMe && !msg.isDeadDrop
+                          ? { color: msg.ackStatus === 'read' ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.2)', transition: 'color 0.5s ease' }
+                          : (!isMe && peerCount >= 2 && peerCount <= 6)
+                            ? { color: getPeerColor(msg.alias) }
+                            : undefined
+                      }
+                    >
+                      {formatTime(msg.timestamp)}
+                    </span>
+                    {burn !== null && (
+                      <span className={`burn-timer ${getBurnClass(burn)}`}>
+                        {formatBurn(burn)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {msg.replyTo && (
+                  <div className="msg-reply-quote">
+                    {linkifyText(truncate(msg.replyTo.body))}
+                  </div>
+                )}
 
-            {/* Footer: status text */}
-            <div className="msg-footer">
-              {isMe && msg.queuedStatus && (
-                <span className={`msg-status ${msg.queuedStatus}`}>
-                  {msg.queuedStatus === 'failed'  && 'failed · try again'}
-                  {msg.queuedStatus === 'sending' && 'sending...'}
-                  {msg.queuedStatus === 'queued'  && msg.queuedExpiresAt &&
-                    `queued · expires ${formatTTL(msg.queuedExpiresAt)}`}
-                </span>
-              )}
-            </div>
+                {/* Meta row: timestamp (left) + burn timer (right) */}
+                <div className="msg-meta">
+                  <span
+                    className="msg-time"
+                    style={
+                      isMe && !msg.isDeadDrop
+                        ? {
+                            color:      msg.ackStatus === 'read' ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.2)',
+                            transition: 'color 0.5s ease',
+                          }
+                        : (!isMe && peerCount >= 2 && peerCount <= 6)
+                          ? { color: getPeerColor(msg.alias) }
+                          : undefined
+                    }
+                  >
+                    {formatTime(msg.timestamp)}
+                  </span>
+                  {burn !== null && !(isMe && msg.queuedStatus) && (
+                    <span className={`burn-timer ${getBurnClass(burn)}`}>
+                      {formatBurn(burn)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Body */}
+                {msg.audioUrl
+                  ? <VoicePlayer audioUrl={msg.audioUrl} duration={msg.audioDuration ?? 0} />
+                  : isLongBody(msg.body)
+                    ? <LongBodyPreview body={msg.body} onOpen={() => setTextReaderMsg(msg)} />
+                    : <div className="msg-body">{linkifyText(msg.body)}</div>
+                }
+
+                {/* Footer: status text */}
+                <div className="msg-footer">
+                  {isMe && msg.queuedStatus && (
+                    <span className={`msg-status ${msg.queuedStatus}`}>
+                      {msg.queuedStatus === 'failed'  && 'failed · try again'}
+                      {msg.queuedStatus === 'sending' && 'sending...'}
+                      {msg.queuedStatus === 'queued'  && msg.queuedExpiresAt &&
+                        `queued · expires ${formatTTL(msg.queuedExpiresAt)}`}
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )
       })}

@@ -1678,26 +1678,60 @@ input, textarea { font-family: var(--font-body); }
    INLINE IMAGE SHARING
    ═══════════════════════════════════ */
 
-/* Image rendered inside a message bubble */
+/* Image rendered inside the wrap */
 .msg-image {
-  display:       block;
-  width:         100%;
-  max-height:    300px;
-  object-fit:    contain;
-  border-radius: 8px;
-  margin:        0;
-  padding:       0;
-  cursor:        zoom-in;
+  display:    block;
+  width:      100%;
+  max-height: 300px;
+  object-fit: contain;
+  margin:     0;
+  padding:    0;
+  cursor:     zoom-in;
 }
 
-/* Tighter padding when bubble contains only an image */
+/* Image bubble: transparent, no shadow, 2px inset around the wrap */
 .message.has-image {
-  padding: 2px;
+  background: transparent;
+  box-shadow: none;
+  padding:    2px;
 }
 
-/* Timestamp inside an image bubble gets breathing room; image itself bleeds to edges */
-.message.has-image .msg-meta {
-  padding: 8px 10px 0;
+/* Clips image + overlay to rounded corners */
+.msg-image-wrap {
+  position:      relative;
+  border-radius: 10px;
+  overflow:      hidden;
+  line-height:   0;
+}
+
+/* Timestamp/burn overlay - pinned to top-right corner for own messages */
+.msg-image-meta {
+  position:                  absolute;
+  top:                       0;
+  right:                     0;
+  display:                   flex;
+  align-items:               center;
+  gap:                       6px;
+  padding:                   4px 8px;
+  background:                rgba(0,0,0,0.5);
+  backdrop-filter:           blur(4px);
+  -webkit-backdrop-filter:   blur(4px);
+  border-bottom-left-radius: 6px;
+}
+
+/* Received: overlay pinned to top-left corner instead */
+.message.received .msg-image-meta {
+  right:                      auto;
+  left:                       0;
+  border-bottom-left-radius:  0;
+  border-bottom-right-radius: 6px;
+}
+
+/* Override the globally-absolute burn-timer when it lives inside the image overlay */
+.msg-image-meta .burn-timer {
+  position: static;
+  top:      auto;
+  right:    auto;
 }
 
 /* Fullscreen lightbox overlay */

@@ -44,7 +44,7 @@ export interface RoomCallbacks {
   onTerminate:     (alias: Alias) => void
   onRoomFull:          () => void
   onTyping:            (alias: Alias) => void
-  onImageChunk?:       (imageId: string, chunkIndex: number, totalChunks: number, imageData: string, mimeType: string, alias: Alias) => void
+  onImageChunk?:       (imageId: string, chunkIndex: number, totalChunks: number, imageData: string, mimeType: string, alias: Alias, replyTo?: ReplyTo) => void
   onVoiceChunk?:       (voiceId: string, chunkIndex: number, totalChunks: number, audioData: string, mimeType: string, audioDuration: number, alias: Alias) => void
   onTextChunk?:        (chunkId: string, chunkIndex: number, totalChunks: number, chunkText: string, alias: Alias, timestamp: number, replyTo?: ReplyTo) => void
   onDeadManArmed?:     (eventId: string, activateAfter: number, tokenHash: string | undefined, alias: Alias, timestamp: number) => void
@@ -234,6 +234,7 @@ export async function joinChatRoom(
           msg.imageData,
           msg.mimeType ?? '',
           msg.alias,
+          msg.chunkIndex === 0 ? msg.replyTo : undefined,
         )
       }
       return
