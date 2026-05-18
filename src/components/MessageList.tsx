@@ -268,7 +268,7 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
                       className="msg-time"
                       style={
                         isMe && !msg.isDeadDrop
-                          ? { color: msg.ackStatus === 'read' ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.2)', transition: 'color 0.5s ease' }
+                          ? { color: msg.ackStatus === 'read' ? 'var(--text-timestamp-read)' : 'var(--text-timestamp-sent)', transition: 'color 0.5s ease' }
                           : (!isMe && peerCount >= 2 && peerCount <= 6)
                             ? { color: getPeerColor(msg.alias) }
                             : undefined
@@ -300,7 +300,7 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
                     style={
                       isMe && !msg.isDeadDrop
                         ? {
-                            color:      msg.ackStatus === 'read' ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.2)',
+                            color:      msg.ackStatus === 'read' ? 'var(--text-timestamp-read)' : 'var(--text-timestamp-sent)',
                             transition: 'color 0.5s ease',
                           }
                         : (!isMe && peerCount >= 2 && peerCount <= 6)
