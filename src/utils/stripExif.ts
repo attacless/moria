@@ -1,43 +1,57 @@
 export async function stripExif(file: File): Promise<Blob> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
 
     img.onload = () => {
+      let width  = img.naturalWidth
+      let height = img.naturalHeight
+
+      // Resize if either dimension exceeds 1600px
+      const MAX_DIM = 1600
+      if (width > MAX_DIM || height > MAX_DIM) {
+        const ratio = Math.min(MAX_DIM / width, MAX_DIM / height)
+        width  = Math.round(width  * ratio)
+        height = Math.round(height * ratio)
+      }
+
       const canvas = document.createElement('canvas')
-      canvas.width = img.naturalWidth
-      canvas.height = img.naturalHeight
+      canvas.width  = width
+      canvas.height = height
 
       const ctx = canvas.getContext('2d')
       if (!ctx) {
         URL.revokeObjectURL(url)
-        reject(new Error('canvas context failed'))
+        resolve(file)
         return
       }
 
-      ctx.drawImage(img, 0, 0)
+      ctx.drawImage(img, 0, 0, width, height)
       URL.revokeObjectURL(url)
 
-      const dataUrl = canvas.toDataURL(
-        file.type === 'image/png' ? 'image/png' : 'image/jpeg',
-        0.92
-      )
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
 
-      // Convert data URL to Blob synchronously - avoids toBlob callback inconsistencies
       const byteString = atob(dataUrl.split(',')[1]!)
-      const mimeString = dataUrl.split(',')[0]!.split(':')[1]!.split(';')[0]!
       const ab = new ArrayBuffer(byteString.length)
       const ia = new Uint8Array(ab)
       for (let i = 0; i < byteString.length; i++) {
         ia[i] = byteString.charCodeAt(i)
       }
 
-      resolve(new Blob([ab], { type: mimeString }))
+      const blob = new Blob([ab], { type: 'image/jpeg' })
+
+      // If compression made it larger somehow, use original
+      if (blob.size > file.size) {
+        resolve(file)
+        return
+      }
+
+      resolve(blob)
     }
 
     img.onerror = () => {
       URL.revokeObjectURL(url)
-      resolve(file) // fallback: send original if strip fails
+      resolve(file)
     }
 
     img.src = url
