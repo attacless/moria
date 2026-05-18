@@ -1743,7 +1743,8 @@ input, textarea { font-family: var(--font-body); }
   width:       100%;
   padding:     32px 24px;
   cursor:      default;
-  color:       rgba(255, 255, 255, 0.85);
+  color:       rgba(255, 255, 255, 0.9);
+  text-shadow: 0 0 8px rgba(255,255,255,0.15), 0 0 20px rgba(255,255,255,0.05);
   font-family: var(--font-body);
   font-size:   15px;
   line-height: 1.8;
