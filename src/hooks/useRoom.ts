@@ -108,6 +108,8 @@ export function useRoom() {
   const lastTypingRef                       = useRef<number>(0)
 
   const [typingAliases, setTypingAliases]   = useState<Alias[]>([])
+  const [isSendingMedia, setIsSendingMedia]     = useState(false)
+  const [mediaSendProgress, setMediaSendProgress] = useState(0)
   const typingTimers                        = useRef<Map<Alias, ReturnType<typeof setTimeout>>>(new Map())
 
   const sessionRef       = useRef<SessionKeys | null>(null)
@@ -1063,6 +1065,9 @@ export function useRoom() {
     const totalChunks = chunks.length
     const ts = roundTimestamp(Date.now())
 
+    setIsSendingMedia(true)
+    setMediaSendProgress(0)
+
     for (let i = 0; i < chunks.length; i++) {
       sendWireMessage({
         type:        'IMAGE_CHUNK',
@@ -1075,10 +1080,13 @@ export function useRoom() {
         imageData:   chunks[i]!,
         ...(i === 0 ? { mimeType } : {}),
       })
+      setMediaSendProgress((i + 1) / totalChunks)
       if (i < chunks.length - 1) {
         await new Promise<void>(r => setTimeout(r, 15))
       }
     }
+
+    setIsSendingMedia(false)
 
     // Show sender's own image immediately via object URL from the clean (EXIF-stripped) blob
     const url = URL.createObjectURL(cleanBlob)
@@ -1103,6 +1111,9 @@ export function useRoom() {
     const totalChunks = chunks.length
     const ts = roundTimestamp(Date.now())
 
+    setIsSendingMedia(true)
+    setMediaSendProgress(0)
+
     for (let i = 0; i < chunks.length; i++) {
       sendWireMessage({
         type:        'VOICE_CHUNK',
@@ -1116,10 +1127,13 @@ export function useRoom() {
         mimeType:    i === 0 ? mimeType : '',
         ...(i === 0 ? { audioDuration: duration } : {}),
       })
+      setMediaSendProgress((i + 1) / totalChunks)
       if (i < chunks.length - 1) {
         await new Promise<void>(r => setTimeout(r, 15))
       }
     }
+
+    setIsSendingMedia(false)
 
     const url = URL.createObjectURL(blob)
     imageObjectUrls.current.add(url)
@@ -1443,5 +1457,7 @@ export function useRoom() {
     sendVoice,
     sendVoiceDeadDrop,
     getPerPeerWatchwords,
+    isSendingMedia,
+    mediaSendProgress,
   }
 }

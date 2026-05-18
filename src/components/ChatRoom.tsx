@@ -52,6 +52,8 @@ interface ChatRoomProps {
   onSendVoice?:         (blob: Blob, duration: number) => void
   onSendVoiceDeadDrop?: (blob: Blob, duration: number, ttlSeconds: number) => void
   onGetWatchwords?:     () => Promise<PeerWatchwords[]>
+  isSendingMedia?:      boolean
+  mediaSendProgress?:   number
 }
 
 
@@ -80,6 +82,8 @@ export function ChatRoom({
   onSendVoice,
   onSendVoiceDeadDrop,
   onGetWatchwords,
+  isSendingMedia,
+  mediaSendProgress,
 }: ChatRoomProps) {
   const [terminating, setTerminating] = useState(false)
 
@@ -553,6 +557,8 @@ export function ChatRoom({
         onTyping={handleTyping}
         {...(onArmDeadMan       ? { onOpenDeadMan: openDeadManModal }                                                   : {})}
         {...(onSendImage        ? { onSendImage }                                                                       : {})}
+        {...(isSendingMedia    !== undefined ? { isSendingMedia }   : {})}
+        {...(mediaSendProgress !== undefined ? { mediaSendProgress } : {})}
         {...(peerCount > 0 && onSendVoice
               ? { onSendVoice }
               : peerCount === 0 && onSendVoiceDeadDrop

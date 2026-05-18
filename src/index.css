@@ -2165,6 +2165,18 @@ input, textarea { font-family: var(--font-body); }
   justify-content: center;
 }
 
+/* Media send progress bar - sits directly above input row */
+.media-send-progress {
+  width:      100%;
+  height:     2px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.media-send-progress-fill {
+  height:     100%;
+  background: rgba(255, 255, 255, 1);
+}
+
 .recording-bar {
   display: flex;
   align-items: center;

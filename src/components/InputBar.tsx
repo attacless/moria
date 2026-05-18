@@ -29,7 +29,7 @@ const TTL_OPTIONS = [
 ]
 
 const DEFAULT_TTL     = TTL_OPTIONS[TTL_OPTIONS.length - 1].seconds  // 24h
-const IMAGE_MAX_BYTES = 2 * 1024 * 1024
+const IMAGE_MAX_BYTES = 10 * 1024 * 1024
 
 interface InputBarProps {
   onSend:          (body: string, ttlSeconds: number) => void
@@ -43,11 +43,13 @@ interface InputBarProps {
   onCancelReply?:  () => void
   onTyping?:       () => void
   onOpenDeadMan?:  () => void
-  onSendImage?:    (file: File) => void
-  onSendVoice?:    (blob: Blob, duration: number) => void
+  onSendImage?:       (file: File) => void
+  onSendVoice?:       (blob: Blob, duration: number) => void
+  isSendingMedia?:    boolean
+  mediaSendProgress?: number
 }
 
-export function InputBar({ onSend, disabled, placeholder, dropError, onClearError, rateLimited, hasPeers, replyTo, onCancelReply, onTyping, onOpenDeadMan, onSendImage, onSendVoice }: InputBarProps) {
+export function InputBar({ onSend, disabled, placeholder, dropError, onClearError, rateLimited, hasPeers, replyTo, onCancelReply, onTyping, onOpenDeadMan, onSendImage, onSendVoice, isSendingMedia, mediaSendProgress }: InputBarProps) {
   const [value, setValue]                     = useState('')
   const [mediaBlockedMsg, setMediaBlockedMsg] = useState<string | null>(null)
   const [dragging, setDragging]               = useState(false)
@@ -101,7 +103,7 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
 
   function stageImageFile(file: File) {
     if (file.size > IMAGE_MAX_BYTES) {
-      showMediaBlocked('image too large - 2 MB maximum')
+      showMediaBlocked('image too large - 10 MB maximum')
       return
     }
     if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
@@ -231,9 +233,10 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
   const handleKey = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
+      if (isSendingMedia) return
       handleSend()
     }
-  }, [handleSend])
+  }, [handleSend, isSendingMedia])
 
   const hasContent   = value.trim().length > 0 || !!imageFile
   const isVoiceStrip = isReadyMode || isRecordingMode
@@ -297,6 +300,16 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
               {opt.label}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Media send progress bar - 2px white line filling left to right */}
+      {isSendingMedia && (
+        <div className="media-send-progress">
+          <div
+            className="media-send-progress-fill"
+            style={{ width: `${(mediaSendProgress ?? 0) * 100}%` }}
+          />
         </div>
       )}
 
@@ -411,6 +424,7 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
                   onClick={() => { playClick(); setPopoverOpen(o => !o) }}
                   type="button"
                   aria-label="Attachments"
+                  disabled={!!isSendingMedia}
                 >
                   +
                 </button>
@@ -449,9 +463,9 @@ export function InputBar({ onSend, disabled, placeholder, dropError, onClearErro
               </div>
 
               <button
-                className={`deadman-btn send-live${rateLimited ? ' rate-limited' : hasContent && !disabled ? ' active' : ''}`}
+                className={`deadman-btn send-live${rateLimited ? ' rate-limited' : hasContent && !disabled && !isSendingMedia ? ' active' : ''}`}
                 onClick={handleSend}
-                disabled={!hasContent || disabled || !!rateLimited}
+                disabled={!hasContent || disabled || !!rateLimited || !!isSendingMedia}
               >
                 {rateLimited ? 'SLOW DOWN' : 'SEND'}
               </button>

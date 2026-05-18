@@ -44,6 +44,8 @@ export default function App() {
     sendVoice,
     sendVoiceDeadDrop,
     getPerPeerWatchwords,
+    isSendingMedia,
+    mediaSendProgress,
   } = useRoom()
 
   const [stegoMode, setStegoMode] = useState(false)
@@ -161,6 +163,8 @@ export default function App() {
               onSendVoice={sendVoice}
               onSendVoiceDeadDrop={sendVoiceDeadDrop}
               onGetWatchwords={getPerPeerWatchwords}
+              isSendingMedia={isSendingMedia}
+              mediaSendProgress={mediaSendProgress}
             />
           )}
 

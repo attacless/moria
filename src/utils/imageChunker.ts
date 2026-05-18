@@ -1,5 +1,5 @@
-// 2 MB ceiling enforced before calling chunkImage
-export const IMAGE_MAX_BYTES = 2 * 1024 * 1024
+// 10 MB ceiling enforced before calling chunkImage (compression reduces output to ~200-400 KB)
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024
 
 // Max base64 chars per IMAGE_CHUNK wire message
 const CHUNK_SIZE = 6_000
