@@ -1,8 +1,10 @@
 import { MessageList } from './MessageList'
 import { InputBar }    from './InputBar'
+import { VoicePlayer } from './VoicePlayer'
 import { webRTCAvailable } from '@/capabilities'
 import { getPeerColor } from '@/utils/peerColors'
 import { playClick } from '@/utils/sounds'
+import { startRecording, stopRecording, cancelRecording } from '@/utils/voiceRecorder'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DisplayMessage, ReplyTo, Alias, PendingDeadMan, PeerWatchwords } from '@/types'
 
@@ -44,9 +46,11 @@ interface ChatRoomProps {
   onTyping?:            () => void
   typingAliases?:       Alias[]
   pendingDeadMans?:     PendingDeadMan[]
-  onArmDeadMan?:        (body: string, activateSeconds: number, tokenHash: string) => Promise<boolean>
+  onArmDeadMan?:        (body: string, activateSeconds: number, tokenHash: string, voiceBlob?: Blob, voiceDuration?: number) => Promise<boolean>
   onCancelDeadMan?:     (eventId: string) => Promise<void>
   onSendImage?:         (file: File) => void
+  onSendVoice?:         (blob: Blob, duration: number) => void
+  onSendVoiceDeadDrop?: (blob: Blob, duration: number, ttlSeconds: number) => void
   onGetWatchwords?:     () => Promise<PeerWatchwords[]>
 }
 
@@ -73,6 +77,8 @@ export function ChatRoom({
   onArmDeadMan,
   onCancelDeadMan,
   onSendImage,
+  onSendVoice,
+  onSendVoiceDeadDrop,
   onGetWatchwords,
 }: ChatRoomProps) {
   const [terminating, setTerminating] = useState(false)
@@ -85,6 +91,16 @@ export function ChatRoom({
 
   // Token confirmation modal (shown after successful ARM)
   const [armedToken, setArmedToken]             = useState<string | null>(null)
+
+  // Dead man modal - voice recording state
+  const [deadManVoiceBlob, setDeadManVoiceBlob]         = useState<Blob | null>(null)
+  const [deadManVoiceDuration, setDeadManVoiceDuration] = useState(0)
+  const [deadManIsRecording, setDeadManIsRecording]     = useState(false)
+  const [deadManRecElapsed, setDeadManRecElapsed]       = useState(0)
+  const deadManRecTimerRef  = useRef<ReturnType<typeof setInterval> | null>(null)
+  const deadManVoiceUrlRef  = useRef<string | null>(null)   // blob URL - managed via ref to avoid extra state
+  const [deadManVoiceReady, setDeadManVoiceReady] = useState(false)
+  const VOICE_MAX_DEAD_DROP = 500 * 1024
 
   // Per-item ENTER CODE state (keyed by eventId)
   // Key present = entering mode active; absent = idle
@@ -116,14 +132,90 @@ export function ChatRoom({
     setPeerWatchwords(words)
   }, [onGetWatchwords])
 
+  function fmtDeadManElapsed(secs: number): string {
+    const m = Math.floor(secs / 60)
+    const s = secs % 60
+    return `${m}:${String(s).padStart(2, '0')}`
+  }
+
+  async function startDeadManVoice() {
+    try {
+      await startRecording(VOICE_MAX_DEAD_DROP, () => stopDeadManVoice())
+      setDeadManIsRecording(true)
+      setDeadManRecElapsed(0)
+      deadManRecTimerRef.current = setInterval(() => setDeadManRecElapsed(e => e + 1), 1_000)
+    } catch {
+      // permission denied - silently ignore
+    }
+  }
+
+  async function stopDeadManVoice(): Promise<{ blob: Blob; duration: number } | null> {
+    if (deadManRecTimerRef.current) {
+      clearInterval(deadManRecTimerRef.current)
+      deadManRecTimerRef.current = null
+    }
+    const result = await stopRecording()
+    setDeadManIsRecording(false)
+    setDeadManRecElapsed(0)
+    if (result) {
+      if (deadManVoiceUrlRef.current) URL.revokeObjectURL(deadManVoiceUrlRef.current)
+      deadManVoiceUrlRef.current = URL.createObjectURL(result.blob)
+      setDeadManVoiceBlob(result.blob)
+      setDeadManVoiceDuration(result.duration)
+    }
+    return result ?? null
+  }
+
+  function cancelDeadManVoice() {
+    if (deadManRecTimerRef.current) {
+      clearInterval(deadManRecTimerRef.current)
+      deadManRecTimerRef.current = null
+    }
+    cancelRecording()
+    setDeadManIsRecording(false)
+    setDeadManRecElapsed(0)
+    setDeadManVoiceBlob(null)
+    setDeadManVoiceDuration(0)
+    setDeadManVoiceReady(false)
+    if (deadManVoiceUrlRef.current) { URL.revokeObjectURL(deadManVoiceUrlRef.current); deadManVoiceUrlRef.current = null }
+  }
+
+  function handleDeadManVoiceLink() {
+    setDeadManVoiceReady(true)
+  }
+
+  function revertToReadyFromRecording() {
+    if (deadManRecTimerRef.current) {
+      clearInterval(deadManRecTimerRef.current)
+      deadManRecTimerRef.current = null
+    }
+    cancelRecording()
+    setDeadManIsRecording(false)
+    setDeadManRecElapsed(0)
+    // deadManVoiceReady stays true
+  }
+
+  function discardAndGoToReady() {
+    setDeadManVoiceBlob(null)
+    setDeadManVoiceDuration(0)
+    if (deadManVoiceUrlRef.current) { URL.revokeObjectURL(deadManVoiceUrlRef.current); deadManVoiceUrlRef.current = null }
+    setDeadManVoiceReady(true)
+  }
+
   const openDeadManModal = useCallback(() => {
     setDeadManBody('')
     setDeadManTimerSecs(DEADMAN_TIMER_OPTIONS[0]!.seconds)
+    setDeadManVoiceBlob(null)
+    setDeadManVoiceDuration(0)
+    setDeadManVoiceReady(false)
+    if (deadManVoiceUrlRef.current) { URL.revokeObjectURL(deadManVoiceUrlRef.current); deadManVoiceUrlRef.current = null }
     setShowDeadManModal(true)
   }, [])
 
   const handleArmDeadMan = useCallback(async () => {
-    if (!deadManBody.trim() || !onArmDeadMan) return
+    const hasVoice = !!deadManVoiceBlob
+    const hasText  = deadManBody.trim().length > 0
+    if ((!hasText && !hasVoice) || !onArmDeadMan) return
     setDeadManArming(true)
 
     // Generate 6-char alphanumeric cancellation token
@@ -136,13 +228,21 @@ export function ChatRoom({
       .map(b => b.toString(16).padStart(2, '0'))
       .join('')
 
-    const ok = await onArmDeadMan(deadManBody.trim(), deadManTimerSecs, tokenHash)
+    const ok = hasVoice
+      ? await onArmDeadMan('', deadManTimerSecs, tokenHash, deadManVoiceBlob, deadManVoiceDuration)
+      : await onArmDeadMan(deadManBody.trim(), deadManTimerSecs, tokenHash)
+
     setDeadManArming(false)
-    setShowDeadManModal(false)
     if (ok) {
-      setArmedToken(token)  // show token confirmation modal
+      setShowDeadManModal(false)
+      setDeadManVoiceBlob(null)
+      setDeadManVoiceDuration(0)
+      setDeadManVoiceReady(false)
+      if (deadManVoiceUrlRef.current) { URL.revokeObjectURL(deadManVoiceUrlRef.current); deadManVoiceUrlRef.current = null }
+      setArmedToken(token)
     }
-  }, [deadManBody, deadManTimerSecs, onArmDeadMan])
+    // on failure: leave blob/preview in place so user can retry
+  }, [deadManBody, deadManTimerSecs, onArmDeadMan, deadManVoiceBlob, deadManVoiceDuration])
 
   // ── ENTER CODE per-item helpers ─────────────────────────────────────────
 
@@ -224,7 +324,7 @@ export function ChatRoom({
   const [replyTo, setReplyTo] = useState<ReplyTo | null>(null)
 
   const handleSelectReply = useCallback((msg: DisplayMessage) => {
-    const body = msg.imageUrl ? 'Image' : msg.body.slice(0, 100)
+    const body = msg.imageUrl ? 'Image' : msg.audioUrl ? 'Voice message' : msg.body.slice(0, 100)
     setReplyTo({ id: msg.id, body, alias: msg.alias })
   }, [])
 
@@ -451,8 +551,13 @@ export function ChatRoom({
         replyTo={replyTo}
         onCancelReply={handleCancelReply}
         onTyping={handleTyping}
-        {...(onArmDeadMan ? { onOpenDeadMan: openDeadManModal } : {})}
-        {...(onSendImage   ? { onSendImage }                    : {})}
+        {...(onArmDeadMan       ? { onOpenDeadMan: openDeadManModal }                                                   : {})}
+        {...(onSendImage        ? { onSendImage }                                                                       : {})}
+        {...(peerCount > 0 && onSendVoice
+              ? { onSendVoice }
+              : peerCount === 0 && onSendVoiceDeadDrop
+                ? { onSendVoice: (b: Blob, d: number) => onSendVoiceDeadDrop(b, d, 86_400) }
+                : {})}
       />
 
       {/* Footer */}
@@ -486,9 +591,8 @@ export function ChatRoom({
         <div className="modal-backdrop">
           <div className="warn-dialog deadman-dialog">
             <div className="warn-title">DEAD MAN'S SWITCH</div>
-            <div className="warn-body">
-              Write a message and set a delay. If no one cancels it before the timer expires, the message will appear automatically to anyone who opens this room.
-            </div>
+
+            {/* Timer selector: always visible */}
             <div className="deadman-timer-selector">
               {DEADMAN_TIMER_OPTIONS.map(opt => (
                 <button
@@ -501,32 +605,105 @@ export function ChatRoom({
                 </button>
               ))}
             </div>
-            <textarea
-              className="deadman-textarea"
-              value={deadManBody}
-              onChange={e => setDeadManBody(e.target.value)}
-              placeholder="message to send when the switch activates..."
-              rows={4}
-              maxLength={1800}
-              autoFocus
-            />
+
+            {/* Main content area: 4-state machine */}
+            {deadManIsRecording ? (
+              /* Recording state */
+              <div className="recording-bar recording-active" style={{ marginBottom: '12px' }}>
+                <div className="rec-dot" />
+                <span className="rec-label">RECORDING</span>
+                <span className="rec-elapsed">{fmtDeadManElapsed(deadManRecElapsed)}</span>
+                <div className="rec-actions">
+                  <button className="rec-icon-btn recording-delete-btn" onClick={revertToReadyFromRecording} type="button" aria-label="Discard and go back">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10 11V17"/>
+                      <path d="M14 11V17"/>
+                      <path d="M4 7H20"/>
+                      <path d="M6 7H12H18V18C18 19.6569 16.6569 21 15 21H9C7.34315 21 6 19.6569 6 18V7Z"/>
+                      <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5V7H9V5Z"/>
+                    </svg>
+                  </button>
+                  <button className="rec-icon-btn recording-send-btn" onClick={stopDeadManVoice} type="button" aria-label="Stop recording">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="6" width="12" height="12" rx="2"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ) : deadManVoiceBlob && deadManVoiceUrlRef.current ? (
+              /* Preview state */
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 0 12px' }}>
+                <VoicePlayer audioUrl={deadManVoiceUrlRef.current} duration={deadManVoiceDuration} />
+                <button className="reply-cancel" onClick={discardAndGoToReady} type="button" aria-label="Discard and re-record">
+                  {'✕'}
+                </button>
+              </div>
+            ) : deadManVoiceReady ? (
+              /* Ready state */
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '16px 0 20px' }}>
+                <button
+                  className="rec-icon-btn rec-ready-mic"
+                  onClick={startDeadManVoice}
+                  type="button"
+                  aria-label="Start recording"
+                  style={{ padding: '0' }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width={32} height={32} viewBox="0 0 90 90" fill="currentColor">
+                    <path d="M69.245 38.312c-1.104 0-2 .896-2 2v6.505c0 12.266-9.979 22.244-22.245 22.244s-22.245-9.979-22.245-22.244v-6.505c0-1.104-.896-2-2-2s-2 .896-2 2v6.505c0 13.797 10.705 25.134 24.245 26.16V86h-9.126c-1.104 0-2 .896-2 2s.896 2 2 2h22.252c1.104 0 2-.896 2-2s-.896-2-2-2H47V72.978c13.54-1.026 24.245-12.363 24.245-26.16v-6.505c0-1.104-.895-2-2-2z"/>
+                    <path d="M45 59.809c8.481 0 15.382-6.9 15.382-15.382V15.382C60.382 6.9 53.481 0 45 0S29.618 6.9 29.618 15.382v29.044c0 8.482 6.901 15.383 15.382 15.383zM33.618 15.382C33.618 9.106 38.724 4 45 4c6.276 0 11.382 5.106 11.382 11.382v29.044c0 6.276-5.105 11.382-11.382 11.382-6.276 0-11.382-5.106-11.382-11.382V15.382z"/>
+                  </svg>
+                </button>
+                <span className="rec-ready-label">TAP TO RECORD</span>
+              </div>
+            ) : (
+              /* Normal state */
+              <>
+                <div className="warn-body">
+                  Write a message and set a delay. If no one cancels it before the timer expires, the message will appear automatically to anyone who opens this room.
+                </div>
+                <textarea
+                  className="deadman-textarea"
+                  value={deadManBody}
+                  onChange={e => setDeadManBody(e.target.value)}
+                  placeholder="message to send when the switch activates..."
+                  rows={4}
+                  maxLength={1800}
+                  autoFocus
+                />
+                <button className="deadman-voice-link" onClick={handleDeadManVoiceLink} type="button">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M14.754 15c1.242 0 2.249 1.007 2.249 2.249v.575c0 .894-.32 1.759-.901 2.439-1.57 1.833-3.957 2.738-7.102 2.738-3.146 0-5.532-.905-7.098-2.74-.58-.679-.899-1.543-.899-2.435v-.577C1.004 16.007 2.01 15 3.252 15h11.502zM9 3.005c2.761 0 5 2.238 5 5s-2.239 5-5 5-5-2.238-5-5 2.239-5 5-5zm10.054-1.601a.75.75 0 01.676 1.279C21.168 3.591 21.75 5.754 21.75 8s-.582 4.423-1.684 6.337a.75.75 0 01-1.301-.746C19.733 11.903 20.25 9.99 20.25 8s-.514-3.89-1.475-5.573a.75.75 0 01.279-1.023zm-3.466 2c.36-.205.818-.08 1.023.28A9.72 9.72 0 0117.75 8a9.72 9.72 0 01-1.144 4.328.75.75 0 01-1.303-.743A8.22 8.22 0 0016.25 8c0-1.273-.328-2.497-.942-3.578a.75.75 0 01.28-1.018z"/>
+                  </svg>
+                  send a voice message instead
+                </button>
+              </>
+            )}
+
             <div className="warn-actions">
               <button
                 className="warn-btn ghost"
-                onClick={() => { playClick(); setShowDeadManModal(false) }}
+                onClick={() => {
+                  playClick()
+                  const inVoiceFlow = deadManVoiceReady || deadManIsRecording || !!deadManVoiceBlob
+                  cancelDeadManVoice()          // always clean up voice state
+                  if (!inVoiceFlow) setShowDeadManModal(false)  // only close if in normal textarea state
+                }}
                 disabled={deadManArming}
                 type="button"
               >
                 CANCEL
               </button>
-              <button
-                className="warn-btn primary"
-                onClick={() => { playClick(); handleArmDeadMan() }}
-                disabled={!deadManBody.trim() || deadManArming}
-                type="button"
-              >
-                {deadManArming ? 'ARMING...' : 'ARM'}
-              </button>
+              {/* ARM visible in normal state (no voice flow) and preview state (blob ready) */}
+              {((!deadManVoiceReady && !deadManIsRecording) || !!deadManVoiceBlob) && (
+                <button
+                  className="warn-btn primary"
+                  onClick={() => { playClick(); handleArmDeadMan() }}
+                  disabled={(!deadManBody.trim() && !deadManVoiceBlob) || deadManArming}
+                  type="button"
+                >
+                  {deadManArming ? 'ARMING...' : 'ARM'}
+                </button>
+              )}
             </div>
           </div>
         </div>

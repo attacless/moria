@@ -230,8 +230,9 @@ async function fetchDeletableEventIds(dropId: string, roomKey: Uint8Array): Prom
       try {
         const bytes     = Uint8Array.from(atob(event.content), c => c.charCodeAt(0))
         const decrypted = await decryptMessage(bytes, roomKey)
-        // Armed DEADMAN: skip so it outlives the session
-        if (decrypted?.type === 'DEADMAN' && decrypted.activateAfter && decrypted.activateAfter > now) {
+        // Armed event (any type with activateAfter > now): skip so it outlives the session.
+        // Covers DEADMAN text switches and VOICE_CHUNK voice switches.
+        if (decrypted?.activateAfter && decrypted.activateAfter > now) {
           return
         }
       } catch {
@@ -339,14 +340,23 @@ export async function publishPoisonEvent(
 // empty results to absorb relay propagation delays.
 
 type DropEvent = {
-  alias:          Alias
-  timestamp:      number
-  body:           string
-  type:           MessageType
-  activateAfter?: number
-  tokenHash?:     string
-  eventId:        string
+  alias:               Alias
+  timestamp:           number
+  body:                string
+  type:                MessageType
+  activateAfter?:      number
+  tokenHash?:          string
+  eventId:             string
+  // VOICE_CHUNK fields (mapped from WireMessage's imageId/imageData/etc.)
+  voiceId?:            string
+  voiceChunkIndex?:    number
+  voiceTotalChunks?:   number
+  voiceAudioData?:     string
+  voiceMimeType?:      string
+  voiceAudioDuration?: number
 }
+
+export type { DropEvent }
 
 async function queryRoomEvents(dropId: string, roomKey: Uint8Array, liveRelays: string[]): Promise<DropEvent[]> {
   const now     = Math.floor(Date.now() / 1000)
@@ -370,8 +380,15 @@ async function queryRoomEvents(dropId: string, roomKey: Uint8Array, liveRelays: 
         body:      decrypted.body,
         type:      decrypted.type,
         eventId:   event.id,
-        ...(decrypted.activateAfter ? { activateAfter: decrypted.activateAfter } : {}),
-        ...(decrypted.tokenHash     ? { tokenHash:     decrypted.tokenHash }     : {}),
+        ...(decrypted.activateAfter    ? { activateAfter:      decrypted.activateAfter }    : {}),
+        ...(decrypted.tokenHash        ? { tokenHash:          decrypted.tokenHash }        : {}),
+        // VOICE_CHUNK fields - reuses WireMessage imageId/imageData/chunkIndex/totalChunks/mimeType
+        ...(decrypted.imageId      !== undefined ? { voiceId:            decrypted.imageId }         : {}),
+        ...(decrypted.chunkIndex   !== undefined ? { voiceChunkIndex:    decrypted.chunkIndex }       : {}),
+        ...(decrypted.totalChunks  !== undefined ? { voiceTotalChunks:   decrypted.totalChunks }      : {}),
+        ...(decrypted.imageData    !== undefined ? { voiceAudioData:     decrypted.imageData }        : {}),
+        ...(decrypted.mimeType     !== undefined ? { voiceMimeType:      decrypted.mimeType }         : {}),
+        ...(decrypted.audioDuration !== undefined ? { voiceAudioDuration: decrypted.audioDuration }   : {}),
       })
     } catch {
       // malformed - skip
@@ -443,5 +460,81 @@ export async function fetchDeadManEvents(
   if (liveRelays.length === 0) return null
 
   const all = await queryRoomEvents(dropId, roomKey, liveRelays)
-  return all.filter(e => e.type === 'DEADMAN')
+  // Return DEADMAN text events plus armed VOICE_CHUNK events (for voice dead man switches)
+  return all.filter(e => e.type === 'DEADMAN' || (e.type === 'VOICE_CHUNK' && !!e.activateAfter))
+}
+
+// ── Voice chunk batch publisher ───────────────────────────────────────────────
+// Publishes all chunks of a voice recording as separate Nostr events in one
+// relay session. Does not apply the per-message 5s rate limiter (this is a
+// batch operation). Updates lastPublishTime after the batch so a normal text
+// message publish cannot immediately follow.
+export async function publishVoiceChunks(
+  chunks:        string[],
+  voiceId:       string,
+  mimeType:      string,
+  audioDuration: number,
+  alias:         Alias,
+  dropId:        string,
+  roomKey:       Uint8Array,
+  signingKey:    Uint8Array,
+  ttlSeconds:    number,
+  activateAfter?: number,
+  tokenHash?:     string
+): Promise<{ success: boolean; eventIds: string[] }> {
+  const liveRelays = await getLiveRelays(4)
+  if (liveRelays.length === 0) return { success: false, eventIds: [] }
+
+  const now        = Math.floor(Date.now() / 1000)
+  const expiration = now + ttlSeconds
+  const eventIds:   string[]       = []
+  const events:     ReturnType<typeof finalizeEvent>[] = []
+
+  for (let i = 0; i < chunks.length; i++) {
+    const wire: WireMessage = {
+      type:      'VOICE_CHUNK',
+      alias,
+      timestamp: roundTimestamp(Date.now()),
+      body:      '',
+      imageId:   voiceId,
+      chunkIndex:  i,
+      totalChunks: chunks.length,
+      imageData:   chunks[i]!,
+      mimeType:    i === 0 ? mimeType : '',
+      ...(i === 0      ? { audioDuration }  : {}),
+      ...(activateAfter ? { activateAfter } : {}),
+      ...(tokenHash     ? { tokenHash }     : {}),
+    }
+
+    const encrypted = await encryptMessage(wire, roomKey)
+    const b64       = btoa(Array.from(encrypted, b => String.fromCharCode(b)).join(''))
+    const jitter    = Math.floor(Math.random() * 121)
+
+    const event = finalizeEvent(
+      {
+        kind:       EVENT_KIND,
+        created_at: now - jitter,
+        tags:       [['r', dropId], ['expiration', String(expiration)]],
+        content:    b64,
+      },
+      signingKey
+    )
+
+    eventIds.push(event.id)
+    events.push(event)
+  }
+
+  // Block immediate TEXT publish after this batch
+  lastPublishTime = Date.now()
+
+  const pool = new SimplePool()
+  try {
+    const results = await Promise.allSettled(
+      events.flatMap(event => liveRelays.map(url => pool.publish([url], event)))
+    )
+    const anySuccess = results.some(r => r.status === 'fulfilled')
+    return { success: anySuccess, eventIds }
+  } finally {
+    pool.close(liveRelays)
+  }
 }

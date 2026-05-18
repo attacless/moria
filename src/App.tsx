@@ -41,6 +41,8 @@ export default function App() {
     armDeadMan,
     cancelDeadMan,
     sendImage,
+    sendVoice,
+    sendVoiceDeadDrop,
     getPerPeerWatchwords,
   } = useRoom()
 
@@ -156,6 +158,8 @@ export default function App() {
               onArmDeadMan={armDeadMan}
               onCancelDeadMan={cancelDeadMan}
               onSendImage={sendImage}
+              onSendVoice={sendVoice}
+              onSendVoiceDeadDrop={sendVoiceDeadDrop}
               onGetWatchwords={getPerPeerWatchwords}
             />
           )}

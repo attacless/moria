@@ -3,6 +3,7 @@ import type { DisplayMessage } from '@/types'
 import { getPeerColor } from '@/utils/peerColors'
 import { playClick } from '@/utils/sounds'
 import { linkifyText } from '@/utils/linkify'
+import { VoicePlayer } from '@components/VoicePlayer'
 
 function truncate(text: string, max = 100): string {
   return text.length > max ? text.slice(0, max) + '...' : text
@@ -175,7 +176,10 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
                   {msg.isDeadMan && (
                     <div className="deadman-label">DEAD MAN'S SWITCH</div>
                   )}
-                  <div className="msg-body">{linkifyText(msg.body)}</div>
+                  {msg.audioUrl
+                    ? <VoicePlayer audioUrl={msg.audioUrl} duration={msg.audioDuration ?? 0} />
+                    : <div className="msg-body">{linkifyText(msg.body)}</div>
+                  }
                 </div>
               )}
             </div>
@@ -225,16 +229,18 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
             </div>
 
             {/* Body */}
-            {msg.imageUrl
-              ? (
-                <img
-                  src={msg.imageUrl}
-                  className="msg-image"
-                  alt="shared image"
-                  onClick={e => { e.stopPropagation(); playClick(); setLightboxUrl(msg.imageUrl!) }}
-                />
-              )
-              : <div className="msg-body">{linkifyText(msg.body)}</div>
+            {msg.audioUrl
+              ? <VoicePlayer audioUrl={msg.audioUrl} duration={msg.audioDuration ?? 0} />
+              : msg.imageUrl
+                ? (
+                  <img
+                    src={msg.imageUrl}
+                    className="msg-image"
+                    alt="shared image"
+                    onClick={e => { e.stopPropagation(); playClick(); setLightboxUrl(msg.imageUrl!) }}
+                  />
+                )
+                : <div className="msg-body">{linkifyText(msg.body)}</div>
             }
 
             {/* Footer: status text */}

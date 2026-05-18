@@ -27,7 +27,7 @@ export interface PeerWatchwords {
   hasChatAlias: boolean   // false when alias is a fallback peer ID truncation
 }
 
-export type MessageType = 'TEXT' | 'DECOY' | 'SYSTEM' | 'PUBKEY_HANDSHAKE' | 'TERMINATE' | 'DURESS' | 'TYPING' | 'DEADMAN' | 'IMAGE' | 'IMAGE_CHUNK' | 'DEADMAN_ARMED' | 'DEADMAN_CANCELLED' | 'ACK'
+export type MessageType = 'TEXT' | 'DECOY' | 'SYSTEM' | 'PUBKEY_HANDSHAKE' | 'TERMINATE' | 'DURESS' | 'TYPING' | 'DEADMAN' | 'IMAGE' | 'IMAGE_CHUNK' | 'DEADMAN_ARMED' | 'DEADMAN_CANCELLED' | 'ACK' | 'VOICE' | 'VOICE_CHUNK'
 
 export interface ReplyTo {
   id:    string
@@ -51,6 +51,7 @@ export interface WireMessage {
   eventId?:       string                  // DEADMAN_ARMED / DEADMAN_CANCELLED only: relay event ID
   msgId?:         string                  // TEXT only: 8-char hex, random per message; used for delivery ACK
   ackIds?:        string[]                // ACK only: batched msgIds being acknowledged
+  audioDuration?: number                  // VOICE_CHUNK only: seconds, carried on first chunk (index 0)
 }
 
 export interface DisplayMessage {
@@ -68,17 +69,21 @@ export interface DisplayMessage {
   queuedStatus?:    'sending' | 'queued' | 'failed'
   replyTo?:         ReplyTo
   imageUrl?:        string              // object URL for inline image (revoked on session end)
+  audioUrl?:        string              // object URL for inline audio (revoked on session end)
+  audioDuration?:   number             // seconds
   msgId?:           string              // 8-char hex, matches WireMessage.msgId - used for ACK lookup
   ackStatus?:       'sent' | 'read'    // delivery confirmation state (own live messages only)
 }
 
 export interface PendingDeadMan {
-  eventId:    string
+  eventId:    string          // Nostr event ID (text) or voiceId (voice)
+  eventIds?:  string[]        // Voice only: all chunk Nostr event IDs for batch deletion
   alias:      Alias
-  timestamp:  number    // Unix ms when published
-  activateAt: number    // Unix seconds when it activates
+  timestamp:  number          // Unix ms when published
+  activateAt: number          // Unix seconds when it activates
   body:       string
-  tokenHash?: string    // SHA-256 hex of cancellation token
+  tokenHash?: string          // SHA-256 hex of cancellation token
+  isVoice?:   boolean         // true when this is a voice dead man switch
 }
 
 export type AppScreen = 'entry' | 'chat'

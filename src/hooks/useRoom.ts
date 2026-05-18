@@ -17,13 +17,15 @@ import {
 } from '@transport/room'
 import { startDecoyEngine, stopDecoyEngine } from '@transport/decoy'
 import { webRTCAvailable } from '@/capabilities'
-import { publishDeadDrop, fetchDeadDrops, fetchDeadManEvents, deleteDeadDrops, deleteAllDeadDrops, publishPoisonEvent } from '@transport/deadDrop'
+import { publishDeadDrop, publishVoiceChunks, fetchDeadDrops, fetchDeadManEvents, deleteDeadDrops, deleteAllDeadDrops, publishPoisonEvent } from '@transport/deadDrop'
 import { resetPeerColors } from '@/utils/peerColors'
 import type { DeadDropReceipt } from '@transport/deadDrop'
 import type { PublishResult } from '@transport/deadDrop'
 import { roundTimestamp } from '@crypto/chacha20'
 import { mountSecurityMeasures, unmountSecurityMeasures, enableCopyPrevention } from '@/security'
-import { chunkImage, reassembleImage, IMAGE_MAX_BYTES } from '@/utils/imageChunker'
+import { chunkImage, chunkBlob, reassembleChunks, IMAGE_MAX_BYTES } from '@/utils/imageChunker'
+import { cancelRecording } from '@/utils/voiceRecorder'
+import { SECS_PER_CHUNK } from '@components/VoicePlayer'
 import { useMessages } from './useMessages'
 import { useAlias } from './useAlias'
 import type { SessionKeys, DisplayMessage, PendingDeadMan, PeerId, AppScreen, Alias, ReplyTo } from '@/types'
@@ -83,6 +85,11 @@ function generateDecoyMessages(roomKey: Uint8Array, myAlias: Alias): DisplayMess
   return msgs.sort((a, b) => a.timestamp - b.timestamp)
 }
 
+const VOICE_MAX_BYTES_P2P       = 2  * 1024 * 1024   // 2 MB live P2P
+const VOICE_MAX_BYTES_DEAD_DROP = 500 * 1024          // 500 KB dead drop
+
+export { VOICE_MAX_BYTES_P2P, VOICE_MAX_BYTES_DEAD_DROP }
+
 export function useRoom() {
   const [screen, setScreen]                 = useState<AppScreen>('entry')
   const [peerCount, setPeerCount]           = useState(0)
@@ -119,8 +126,32 @@ export function useRoom() {
     mimeType:    string
     timer:       ReturnType<typeof setTimeout>
   }>>(new Map())
-  // All object URLs created this session - revoked on leave/terminate/panic
+  // All object URLs created this session (images + audio) - revoked on leave/terminate/panic
   const imageObjectUrls  = useRef<Set<string>>(new Set())
+
+  // P2P voice reassembly buffer: voiceId -> partial chunk state + 60s discard timer
+  const voiceChunkBuffer = useRef<Map<string, {
+    chunks:        Map<number, string>
+    totalChunks:   number
+    mimeType:      string
+    audioDuration: number
+    alias:         Alias
+    timestamp:     number
+    timer:         ReturnType<typeof setTimeout>
+  }>>(new Map())
+
+  // Dead drop voice reassembly buffer: voiceId -> chunk state + poll count (max 3)
+  const voiceDropBuffer = useRef<Map<string, {
+    chunks:        Map<number, string>
+    totalChunks:   number
+    mimeType:      string
+    audioDuration: number
+    alias:         Alias
+    timestamp:     number
+    pollCount:     number
+    isDeadMan:     boolean
+    activateAfter?: number
+  }>>(new Map())
   const { messages, addMessage, addMessages, clearMessages, burnSecondsRemaining, confirmDeadDrop, autoConfirmDeadDrops, confirmAllDeadDrops, extendBurnTimers, updateMessageStatus, clearQueuedStatus } = useMessages()
   const { alias, rotateAlias } = useAlias()
 
@@ -166,12 +197,104 @@ export function useRoom() {
     // Nothing to add to the message list - reconciliation above is the only work.
     if (drops.length === 0) return
 
+    // Handle VOICE_CHUNK drops: group by voiceId, reassemble when complete.
+    // Activated voice chunks (no activateAfter or activateAfter <= now) are processed here.
+    // Pending armed voice chunks (activateAfter > now) are handled by fetchDeadManState.
+    const voiceChunkDrops = drops.filter(
+      d => d.type === 'VOICE_CHUNK' && (!d.activateAfter || d.activateAfter <= nowSecs)
+    )
+    if (voiceChunkDrops.length > 0) {
+      // Group by voiceId
+      const byVoiceId = new Map<string, typeof voiceChunkDrops>()
+      for (const chunk of voiceChunkDrops) {
+        if (!chunk.voiceId) continue
+        const arr = byVoiceId.get(chunk.voiceId) ?? []
+        arr.push(chunk)
+        byVoiceId.set(chunk.voiceId, arr)
+      }
+
+      for (const [voiceId, chunkEvents] of byVoiceId) {
+        // Skip already assembled voices
+        if (seenDropIds.current.has(`VOICE:${voiceId}`)) continue
+
+        const firstChunk = chunkEvents.find(c => c.voiceChunkIndex === 0)
+        const totalChunks = firstChunk?.voiceTotalChunks ?? chunkEvents[0]?.voiceTotalChunks ?? 0
+        if (totalChunks === 0) continue
+
+        // Create or update the reassembly buffer entry
+        let entry = voiceDropBuffer.current.get(voiceId)
+        if (!entry) {
+          entry = {
+            chunks:        new Map(),
+            totalChunks,
+            mimeType:      firstChunk?.voiceMimeType ?? '',
+            audioDuration: firstChunk?.voiceAudioDuration ?? 0,
+            alias:         chunkEvents[0]!.alias,
+            timestamp:     chunkEvents[0]!.timestamp,
+            pollCount:     0,
+            isDeadMan:     !!chunkEvents[0]?.activateAfter,
+            ...(chunkEvents[0]?.activateAfter ? { activateAfter: chunkEvents[0].activateAfter } : {}),
+          }
+          voiceDropBuffer.current.set(voiceId, entry)
+        }
+
+        let addedNew = false
+        for (const chunk of chunkEvents) {
+          if (chunk.voiceChunkIndex !== undefined && chunk.voiceAudioData !== undefined) {
+            if (!entry.chunks.has(chunk.voiceChunkIndex)) {
+              entry.chunks.set(chunk.voiceChunkIndex, chunk.voiceAudioData)
+              addedNew = true
+            }
+          }
+          if (chunk.voiceMimeType)      entry.mimeType      = chunk.voiceMimeType
+          if (chunk.voiceAudioDuration) entry.audioDuration = chunk.voiceAudioDuration
+        }
+
+        if (addedNew) entry.pollCount = 0
+        else          entry.pollCount++
+
+        if (entry.pollCount >= 3) {
+          voiceDropBuffer.current.delete(voiceId)
+          addMessage({
+            id:        crypto.randomUUID(),
+            alias:     'system',
+            timestamp: roundTimestamp(Date.now()),
+            body:      'a voice message could not be fully received',
+            isMine:    false,
+          })
+          continue
+        }
+
+        if (entry.chunks.size === entry.totalChunks) {
+          seenDropIds.current.add(`VOICE:${voiceId}`)
+          voiceDropBuffer.current.delete(voiceId)
+
+          const url            = reassembleChunks(entry.chunks, entry.mimeType || 'audio/webm;codecs=opus')
+          const resolvedDur    = entry.audioDuration || Math.round(entry.totalChunks * SECS_PER_CHUNK)
+          imageObjectUrls.current.add(url)
+          addMessage({
+            id:            crypto.randomUUID(),
+            alias:         entry.alias,
+            timestamp:     entry.timestamp,
+            body:          '',
+            isMine:        false,
+            isDeadDrop:    true,
+            confirmed:     false,
+            audioUrl:      url,
+            audioDuration: resolvedDur,
+            ...(entry.isDeadMan ? { isDeadMan: true } : {}),
+          })
+        }
+      }
+    }
+
     // All other drops (TEXT, activated DEADMAN, etc.) go through the normal pipeline.
     // An activated DEADMAN (activateAfter <= now) passes through here and is displayed
     // as a message. It is also removed from pendingDeadMans by the setPendingDeadMans
     // call above (since it no longer matches activateAfter > nowSecs).
     const newDrops = drops
       .filter(d => d.type !== 'DURESS')
+      .filter(d => d.type !== 'VOICE_CHUNK')   // handled by voice reassembly path above
       .filter(d => !(d.type === 'DEADMAN' && d.activateAfter && d.activateAfter > nowSecs))
       .filter(d => !seenDropIds.current.has(`${d.alias}:${d.timestamp}:${d.body}`))
 
@@ -209,18 +332,48 @@ export function useRoom() {
     if (events === null) return  // skipped (rate-limited or no relays)
 
     const nowSecs = Math.floor(Date.now() / 1000)
-    const relayArmedIds = new Set(
-      events
-        .filter(e => e.activateAfter && e.activateAfter > nowSecs)
-        .map(e => e.eventId)
-    )
+
+    // Separate DEADMAN text events from VOICE_CHUNK events
+    const textEvents  = events.filter(e => e.type === 'DEADMAN')
+    const voiceEvents = events.filter(e => e.type === 'VOICE_CHUNK' && e.activateAfter && e.activateAfter > nowSecs)
+
+    // Group voice chunks by voiceId - each unique voiceId is one switch
+    const armedVoiceByVoiceId = new Map<string, {
+      activateAfter: number
+      alias:         Alias
+      timestamp:     number
+      tokenHash?:    string
+      eventIds:      string[]
+    }>()
+    for (const chunk of voiceEvents) {
+      if (!chunk.voiceId || !chunk.activateAfter) continue
+      const existing = armedVoiceByVoiceId.get(chunk.voiceId)
+      if (existing) {
+        existing.eventIds.push(chunk.eventId)
+      } else {
+        armedVoiceByVoiceId.set(chunk.voiceId, {
+          activateAfter: chunk.activateAfter,
+          alias:         chunk.alias,
+          timestamp:     chunk.timestamp,
+          ...(chunk.tokenHash ? { tokenHash: chunk.tokenHash } : {}),
+          eventIds:      [chunk.eventId],
+        })
+      }
+    }
+
+    // All relay-armed IDs: text switches use eventId, voice switches use voiceId
+    const relayArmedIds = new Set([
+      ...textEvents.filter(e => e.activateAfter && e.activateAfter > nowSecs).map(e => e.eventId),
+      ...Array.from(armedVoiceByVoiceId.keys()),
+    ])
 
     setPendingDeadMans(prev => {
       // Remove entries no longer on relay (cancelled by another client or expired)
-      const kept   = prev.filter(dm => relayArmedIds.has(dm.eventId))
+      const kept    = prev.filter(dm => relayArmedIds.has(dm.eventId))
       const keptIds = new Set(kept.map(dm => dm.eventId))
-      // Add entries the relay has that are not yet in local state
-      const added = events
+
+      // Add text entries the relay has that are not yet in local state
+      const addedText = textEvents
         .filter(e => e.activateAfter && e.activateAfter > nowSecs && !keptIds.has(e.eventId))
         .map(e => ({
           eventId:    e.eventId,
@@ -230,7 +383,22 @@ export function useRoom() {
           body:       e.body,
           ...(e.tokenHash ? { tokenHash: e.tokenHash } : {}),
         }))
-      return [...kept, ...added]
+
+      // Add voice entries not yet in local state (keyed by voiceId)
+      const addedVoice = Array.from(armedVoiceByVoiceId.entries())
+        .filter(([voiceId]) => !keptIds.has(voiceId))
+        .map(([voiceId, info]) => ({
+          eventId:    voiceId,
+          eventIds:   info.eventIds,
+          alias:      info.alias,
+          timestamp:  info.timestamp * 1000,
+          activateAt: info.activateAfter,
+          body:       '',
+          isVoice:    true as const,
+          ...(info.tokenHash ? { tokenHash: info.tokenHash } : {}),
+        }))
+
+      return [...kept, ...addedText, ...addedVoice]
     })
   }, [])
 
@@ -301,6 +469,10 @@ export function useRoom() {
           imageObjectUrls.current.clear()
           if (ackTimerRef.current) { clearTimeout(ackTimerRef.current); ackTimerRef.current = null }
           ackQueueRef.current = []
+          voiceChunkBuffer.current.forEach(entry => clearTimeout(entry.timer))
+          voiceChunkBuffer.current.clear()
+          voiceDropBuffer.current.clear()
+          cancelRecording()
           stopDecoyEngine()
           leaveRoom()
           resetPeerColors()
@@ -358,7 +530,7 @@ export function useRoom() {
           if (entry.chunks.size === entry.totalChunks) {
             clearTimeout(entry.timer)
             imageChunkBuffer.current.delete(imageId)
-            const url = reassembleImage(entry.chunks, entry.mimeType || 'image/jpeg')
+            const url = reassembleChunks(entry.chunks, entry.mimeType || 'image/jpeg')
             imageObjectUrls.current.add(url)
             addMessage({
               id:        crypto.randomUUID(),
@@ -368,6 +540,54 @@ export function useRoom() {
               isMine:    false,
               burnAt:    Date.now() + 5 * 60 * 1_000,
               imageUrl:  url,
+            })
+          }
+        },
+
+        onVoiceChunk: (voiceId: string, chunkIndex: number, totalChunks: number, audioData: string, mimeType: string, audioDuration: number, peerAlias: Alias) => {
+          let entry = voiceChunkBuffer.current.get(voiceId)
+          if (!entry) {
+            const timer = setTimeout(() => {
+              voiceChunkBuffer.current.delete(voiceId)
+              addMessage({
+                id:        crypto.randomUUID(),
+                alias:     'system',
+                timestamp: roundTimestamp(Date.now()),
+                body:      'a voice message could not be fully received',
+                isMine:    false,
+              })
+            }, 60_000)
+            entry = {
+              chunks:        new Map(),
+              totalChunks,
+              mimeType:      '',
+              audioDuration: 0,
+              alias:         peerAlias,
+              timestamp:     roundTimestamp(Date.now()),
+              timer,
+            }
+            voiceChunkBuffer.current.set(voiceId, entry)
+          }
+          entry.chunks.set(chunkIndex, audioData)
+          if (mimeType)      entry.mimeType      = mimeType
+          if (audioDuration) entry.audioDuration = audioDuration
+
+          if (entry.chunks.size === entry.totalChunks) {
+            clearTimeout(entry.timer)
+            voiceChunkBuffer.current.delete(voiceId)
+
+            const url         = reassembleChunks(entry.chunks, entry.mimeType || 'audio/webm;codecs=opus')
+            const resolvedDur = entry.audioDuration || Math.round(entry.totalChunks * SECS_PER_CHUNK)
+            imageObjectUrls.current.add(url)
+            addMessage({
+              id:            crypto.randomUUID(),
+              alias:         entry.alias,
+              timestamp:     entry.timestamp,
+              body:          '',
+              isMine:        false,
+              burnAt:        Date.now() + 5 * 60 * 1_000,
+              audioUrl:      url,
+              audioDuration: resolvedDur,
             })
           }
         },
@@ -563,16 +783,58 @@ export function useRoom() {
 
   // ── Dead man's switch ────────────────────────────────────────────────────
 
-  const armDeadMan = useCallback(async (body: string, activateSeconds: number, tokenHash: string): Promise<boolean> => {
+  const armDeadMan = useCallback(async (
+    body:           string,
+    activateSeconds: number,
+    tokenHash:      string,
+    voiceBlob?:     Blob,
+    voiceDuration?: number
+  ): Promise<boolean> => {
     const keys = sessionRef.current
     if (!keys) return false
 
-    const activateAfter  = Math.floor(Date.now() / 1000) + activateSeconds
-    // TTL: hold the relay event for the full activation window plus 24h buffer
-    // so the recipient can still fetch it after it activates.
-    const ttlSeconds     = activateSeconds + 86_400
+    const activateAfter = Math.floor(Date.now() / 1000) + activateSeconds
+    // TTL: hold the relay event for the full activation window plus 24h buffer.
+    const ttlSeconds    = activateSeconds + 86_400
 
-    // Capture the timestamp before the async call so seenDropIds uses the same bucket.
+    // ── Voice dead man switch ──────────────────────────────────────────────
+    if (voiceBlob) {
+      const { voiceId, mimeType, chunks } = await chunkBlob(voiceBlob)
+      const publishedTimestamp = roundTimestamp(Date.now())
+
+      const result = await publishVoiceChunks(
+        chunks,
+        voiceId,
+        mimeType,
+        voiceDuration ?? 0,
+        alias,
+        keys.dropId,
+        keys.roomKey,
+        keys.signingKey,
+        ttlSeconds,
+        activateAfter,
+        tokenHash,
+      )
+
+      if (result.success) {
+        seenDropIds.current.add(`VOICE:${voiceId}`)
+        setPendingDeadMans(prev => [...prev, {
+          eventId:    voiceId,
+          eventIds:   result.eventIds,
+          alias,
+          timestamp:  Date.now(),
+          activateAt: activateAfter,
+          body:       '',
+          tokenHash,
+          isVoice:    true,
+        }])
+        broadcastDeadManArmed(voiceId, activateAfter, tokenHash, alias, publishedTimestamp)
+      }
+
+      return result.success
+    }
+
+    // ── Text dead man switch (original path) ──────────────────────────────
     const publishedTimestamp = roundTimestamp(Date.now())
 
     const result = await publishDeadDrop(
@@ -588,10 +850,8 @@ export function useRoom() {
     )
 
     if (result.success) {
-      // Prevent sender from seeing their own switch as a received activated message.
       seenDropIds.current.add(`${alias}:${publishedTimestamp}:${body}`)
 
-      // Show the pending strip immediately - no need to wait for the next poll cycle.
       if (result.receipt) {
         setPendingDeadMans(prev => [...prev, {
           eventId:    result.receipt!.eventId,
@@ -602,8 +862,6 @@ export function useRoom() {
           tokenHash,
         }])
 
-        // Notify connected peers instantly over P2P.
-        // Peers who join later learn about the switch via the relay poll.
         broadcastDeadManArmed(
           result.receipt.eventId,
           activateAfter,
@@ -620,13 +878,19 @@ export function useRoom() {
   const cancelDeadMan = useCallback(async (eventId: string): Promise<void> => {
     const keys = sessionRef.current
     if (!keys) return
+    // For voice dead man switches, dm.eventIds contains all chunk Nostr event IDs.
+    // For text switches, a single receipt suffices.
+    const dm       = pendingDeadMans.find(d => d.eventId === eventId)
+    const receipts = dm?.eventIds
+      ? dm.eventIds.map(id => ({ eventId: id, expiresAt: 0 }))
+      : [{ eventId, expiresAt: 0 }]
     try {
-      await deleteDeadDrops([{ eventId, expiresAt: 0 }], keys.dropId, keys.signingKey)
+      await deleteDeadDrops(receipts, keys.dropId, keys.signingKey)
     } catch {}
     // Notify connected peers instantly; relay poll reconciles for peers not online.
     broadcastDeadManCancelled(eventId, alias)
     setPendingDeadMans(prev => prev.filter(d => d.eventId !== eventId))
-  }, [alias])
+  }, [alias, pendingDeadMans])
 
   // ── Image send ──────────────────────────────────────────────────────────
 
@@ -666,6 +930,102 @@ export function useRoom() {
     })
   }, [alias, addMessage])
 
+  // ── Voice send (P2P live chat) ───────────────────────────────────────────
+
+  const sendVoice = useCallback(async (blob: Blob, duration: number): Promise<void> => {
+    if (getPeerCount() === 0) return
+
+    const { voiceId, mimeType, chunks } = await chunkBlob(blob)
+    const totalChunks = chunks.length
+    const ts = roundTimestamp(Date.now())
+
+    for (let i = 0; i < chunks.length; i++) {
+      sendWireMessage({
+        type:        'VOICE_CHUNK',
+        alias,
+        timestamp:   ts,
+        body:        '',
+        imageId:     voiceId,
+        chunkIndex:  i,
+        totalChunks,
+        imageData:   chunks[i]!,
+        mimeType:    i === 0 ? mimeType : '',
+        ...(i === 0 ? { audioDuration: duration } : {}),
+      })
+    }
+
+    const url = URL.createObjectURL(blob)
+    imageObjectUrls.current.add(url)
+    addMessage({
+      id:            crypto.randomUUID(),
+      alias,
+      timestamp:     ts,
+      body:          '',
+      isMine:        true,
+      burnAt:        Date.now() + 5 * 60 * 1_000,
+      audioUrl:      url,
+      audioDuration: duration,
+    })
+  }, [alias, addMessage])
+
+  // ── Voice dead drop (no peers online) ───────────────────────────────────
+
+  const sendVoiceDeadDrop = useCallback(async (
+    blob:       Blob,
+    duration:   number,
+    ttlSeconds: number = 86_400
+  ): Promise<void> => {
+    const keys = sessionRef.current
+    if (!keys) return
+
+    const { voiceId, mimeType, chunks } = await chunkBlob(blob)
+
+    // Optimistic message - shows immediately while publishing
+    const optimisticId = crypto.randomUUID()
+    const localUrl     = URL.createObjectURL(blob)
+    imageObjectUrls.current.add(localUrl)
+    addMessage({
+      id:            optimisticId,
+      alias,
+      timestamp:     roundTimestamp(Date.now()),
+      body:          '',
+      isMine:        true,
+      isDeadDrop:    true,
+      queuedStatus:  'sending',
+      audioUrl:      localUrl,
+      audioDuration: duration,
+    })
+
+    const result = await publishVoiceChunks(
+      chunks,
+      voiceId,
+      mimeType,
+      duration,
+      alias,
+      keys.dropId,
+      keys.roomKey,
+      keys.signingKey,
+      ttlSeconds,
+    )
+
+    if (!result.success) {
+      updateMessageStatus(optimisticId, { queuedStatus: 'failed' })
+      return
+    }
+
+    // Prevent the poll from re-displaying this own voice message
+    seenDropIds.current.add(`VOICE:${voiceId}`)
+
+    // No receipt object available from publishVoiceChunks, so use a synthetic expiry
+    const expiresAt = Date.now() + ttlSeconds * 1_000
+    updateMessageStatus(optimisticId, {
+      queuedStatus:    'queued',
+      queuedExpiresAt: expiresAt,
+      burnAt:          expiresAt,
+      confirmed:       true,
+    })
+  }, [alias, addMessage, updateMessageStatus])
+
   // ── Leave ────────────────────────────────────────────────────────────────
 
   const leave = useCallback(() => {
@@ -682,6 +1042,10 @@ export function useRoom() {
     imageObjectUrls.current.clear()
     if (ackTimerRef.current) { clearTimeout(ackTimerRef.current); ackTimerRef.current = null }
     ackQueueRef.current = []
+    voiceChunkBuffer.current.forEach(entry => clearTimeout(entry.timer))
+    voiceChunkBuffer.current.clear()
+    voiceDropBuffer.current.clear()
+    cancelRecording()
     stopDecoyEngine()
     leaveRoom()
     resetPeerColors()
@@ -715,6 +1079,10 @@ export function useRoom() {
     imageObjectUrls.current.clear()
     if (ackTimerRef.current) { clearTimeout(ackTimerRef.current); ackTimerRef.current = null }
     ackQueueRef.current = []
+    voiceChunkBuffer.current.forEach(entry => clearTimeout(entry.timer))
+    voiceChunkBuffer.current.clear()
+    voiceDropBuffer.current.clear()
+    cancelRecording()
 
     // Fire NIP-09 deletion for ALL drop events - cross-session capable.
     // Signing key zeroed in finally() regardless of success or failure.
@@ -764,6 +1132,10 @@ export function useRoom() {
     imageObjectUrls.current.clear()
     if (ackTimerRef.current) { clearTimeout(ackTimerRef.current); ackTimerRef.current = null }
     ackQueueRef.current = []
+    voiceChunkBuffer.current.forEach(entry => clearTimeout(entry.timer))
+    voiceChunkBuffer.current.clear()
+    voiceDropBuffer.current.clear()
+    cancelRecording()
     stopDecoyEngine()
     leaveRoom()
     resetPeerColors()
@@ -894,6 +1266,8 @@ export function useRoom() {
     armDeadMan,
     cancelDeadMan,
     sendImage,
+    sendVoice,
+    sendVoiceDeadDrop,
     getPerPeerWatchwords,
   }
 }
