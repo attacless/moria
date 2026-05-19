@@ -1034,7 +1034,7 @@ input, textarea { font-family: var(--font-body); }
 .msg-time {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--text-hint);
   letter-spacing: 0.5px;
 }
 
