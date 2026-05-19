@@ -267,9 +267,9 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
                     <span
                       className="msg-time"
                       style={
-                        isMe && !msg.isDeadDrop
+                        isMe
                           ? { color: msg.ackStatus === 'read' ? 'var(--text-timestamp-read)' : 'var(--text-timestamp-sent)', transition: 'color 0.5s ease' }
-                          : (!isMe && peerCount >= 2 && peerCount <= 6)
+                          : (peerCount >= 2 && peerCount <= 6)
                             ? { color: getPeerColor(msg.alias) }
                             : undefined
                       }
@@ -298,12 +298,12 @@ export function MessageList({ messages, myAlias, burnSecondsRemaining, onConfirm
                   <span
                     className="msg-time"
                     style={
-                      isMe && !msg.isDeadDrop
+                      isMe
                         ? {
                             color:      msg.ackStatus === 'read' ? 'var(--text-timestamp-read)' : 'var(--text-timestamp-sent)',
                             transition: 'color 0.5s ease',
                           }
-                        : (!isMe && peerCount >= 2 && peerCount <= 6)
+                        : (peerCount >= 2 && peerCount <= 6)
                           ? { color: getPeerColor(msg.alias) }
                           : undefined
                     }

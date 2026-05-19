@@ -1342,7 +1342,7 @@ input, textarea { font-family: var(--font-body); }
   font-size: 9px;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--text-hint);
   margin-right: 2px;
   user-select: none;
   padding: 6px 0;
@@ -1353,7 +1353,7 @@ input, textarea { font-family: var(--font-body); }
   font-size: 9px;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: var(--btn-ghost-color);
+  color: var(--text-hint);
   background: none;
   border: none;
   padding: 6px 8px;
