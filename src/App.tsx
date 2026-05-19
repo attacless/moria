@@ -8,6 +8,8 @@ import { ChatRoom }           from '@components/ChatRoom'
 import { StegoMode }          from '@components/StegoMode'
 import { WarnDialog }         from '@components/WarnDialog'
 
+export type Theme = 'moria' | 'mithril'
+
 export default function App() {
   const {
     screen,
@@ -49,6 +51,8 @@ export default function App() {
   } = useRoom()
 
   const [stegoMode, setStegoMode] = useState(false)
+  const [theme, setTheme]         = useState<Theme>('moria')
+
   // Chat fade-in entrance animation
   const [chatVisible, setChatVisible] = useState(false)
   const prevScreenRef = useRef(screen)
@@ -56,6 +60,22 @@ export default function App() {
 
   usePanic({ onPanic: panic })
   useInactivityTimer(screen === 'chat', { onWarn, onDisconnect })
+
+  // Restore theme from sessionStorage on mount
+  useEffect(() => {
+    const saved = sessionStorage.getItem('moria-theme')
+    if (saved === 'mithril') setTheme('mithril')
+  }, [])
+
+  // Persist theme to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem('moria-theme', theme)
+  }, [theme])
+
+  // Sync body background to theme so wide-screen gutters match
+  useEffect(() => {
+    document.body.style.background = theme === 'mithril' ? '#FCFBFA' : '#000000'
+  }, [theme])
 
   // Init audio on first user interaction to satisfy browser autoplay policy
   useEffect(() => {
@@ -83,7 +103,7 @@ export default function App() {
     prevScreenRef.current = screen
   }, [screen])
 
-  // 5× Shift → stego mode
+  // 5x Shift → stego mode
   useEffect(() => {
     if (screen !== 'chat' || stegoMode) return
     const presses: number[] = []
@@ -104,17 +124,20 @@ export default function App() {
     if (screen === 'entry') setStegoMode(false)
   }, [screen])
 
-  const handleLeave = useCallback(() => leave(), [leave])
+  const handleLeave    = useCallback(() => leave(), [leave])
+  const handleToggleTheme = useCallback(() => setTheme(t => t === 'moria' ? 'mithril' : 'moria'), [])
   const roomId = sessionKeys?.roomId ?? ''
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)' }}>
+    <div className={theme === 'mithril' ? 'theme-mithril' : undefined} style={{ position: 'fixed', inset: 0, background: 'var(--bg-app)' }}>
 
       {screen === 'entry' && (
         <EntryScreen
           onJoin={join}
           isJoining={isJoining}
           error={error}
+          theme={theme}
+          onThemeToggle={handleToggleTheme}
         />
       )}
 
@@ -165,6 +188,8 @@ export default function App() {
               onGetWatchwords={getPerPeerWatchwords}
               isSendingMedia={isSendingMedia}
               mediaSendProgress={mediaSendProgress}
+              theme={theme}
+              onThemeToggle={handleToggleTheme}
             />
           )}
 

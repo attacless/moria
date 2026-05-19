@@ -17,6 +17,30 @@ const DEADMAN_TIMER_OPTIONS = [
   { label: '48H', seconds: 48 * 60 * 60 },
 ]
 
+function SunIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/>
+      <line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/>
+      <line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+  )
+}
+
+function MoonIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+    </svg>
+  )
+}
+
 function formatCountdown(activateAtSecs: number): string {
   const remaining = Math.max(0, activateAtSecs - Math.floor(Date.now() / 1000))
   const h = Math.floor(remaining / 3600)
@@ -54,6 +78,8 @@ interface ChatRoomProps {
   onGetWatchwords?:     () => Promise<PeerWatchwords[]>
   isSendingMedia?:      boolean
   mediaSendProgress?:   number
+  theme?:               'moria' | 'mithril'
+  onThemeToggle?:       () => void
 }
 
 
@@ -84,6 +110,8 @@ export function ChatRoom({
   onGetWatchwords,
   isSendingMedia,
   mediaSendProgress,
+  theme = 'moria',
+  onThemeToggle,
 }: ChatRoomProps) {
   const [terminating, setTerminating] = useState(false)
 
@@ -580,6 +608,17 @@ export function ChatRoom({
       {/* Footer */}
       <div className="chat-footer">
         <span className="panic-hint">panic esc × 3 · decoy shift × 5</span>
+        {onThemeToggle && (
+          <button
+            type="button"
+            className="theme-toggle-btn"
+            onClick={() => { playClick(); onThemeToggle() }}
+            aria-label={theme === 'moria' ? 'Switch to Mithril light theme' : 'Switch to Moria dark theme'}
+            style={{ marginLeft: 'auto' }}
+          >
+            {theme === 'moria' ? <SunIcon /> : <MoonIcon />}
+          </button>
+        )}
       </div>
 
       {/* Token confirmation modal - shown after successful ARM */}
@@ -752,7 +791,7 @@ export function ChatRoom({
                   Share these words with each peer separately over a different channel. Each connection has unique watchwords.
                 </div>
                 {peerWatchwords.some(pw => !pw.hasChatAlias) && (
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: '4px', marginBottom: '12px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-hint)', textAlign: 'center', marginTop: '4px', marginBottom: '12px' }}>
                     Peer aliases appear after the first message is exchanged.
                   </div>
                 )}

@@ -4,9 +4,35 @@ import { webRTCAvailable, wasmAvailable } from '@/capabilities'
 import { playClick } from '@/utils/sounds'
 
 interface EntryScreenProps {
-  onJoin:    (password: string) => Promise<void>
-  isJoining: boolean
-  error:     string | null
+  onJoin:        (password: string) => Promise<void>
+  isJoining:     boolean
+  error:         string | null
+  theme:         'moria' | 'mithril'
+  onThemeToggle: () => void
+}
+
+function SunIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/>
+      <line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/>
+      <line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+  )
+}
+
+function MoonIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+    </svg>
+  )
 }
 
 type StrengthLevel = 'none' | 'weak' | 'fair' | 'good' | 'strong'
@@ -43,7 +69,7 @@ function handleCloseTab() {
   setTimeout(() => { location.href = 'about:blank' }, 300)
 }
 
-export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
+export function EntryScreen({ onJoin, isJoining, error, theme, onThemeToggle }: EntryScreenProps) {
   const [password, setPassword]             = useState('')
   const [showPass, setShowPass]             = useState(false)
   const [focused, setFocused]               = useState(false)
@@ -165,6 +191,14 @@ export function EntryScreen({ onJoin, isJoining, error }: EntryScreenProps) {
       <span>
         {relayState === 'connecting' ? 'CONNECTING...' : relayState === 'online' ? 'ONLINE' : 'OFFLINE'}
       </span>
+      <button
+        type="button"
+        className="theme-toggle-btn"
+        onClick={() => { playClick(); onThemeToggle() }}
+        aria-label={theme === 'moria' ? 'Switch to Mithril light theme' : 'Switch to Moria dark theme'}
+      >
+        {theme === 'moria' ? <SunIcon /> : <MoonIcon />}
+      </button>
     </div>
 
     {/* WebRTC unavailable modal - shown once when WebRTC is not supported */}
