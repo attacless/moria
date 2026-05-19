@@ -2027,15 +2027,17 @@ input, textarea { font-family: var(--font-body); }
 /* ── Long body collapsed preview ───────────────────────────────────────────── */
 
 .long-body-preview {
-  position:    relative;
-  cursor:      pointer;
-  overflow:    hidden;
-  max-height:  80px;
-  padding-bottom: 20px;
+  position: relative;
+  cursor:   pointer;
+  overflow: hidden;
+  max-height: none;
 }
 
 .long-body-text {
-  display:     block;
+  display:            -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow:           hidden;
   font-family: var(--font-body);
   font-size:   13px;
   line-height: 1.6;
@@ -2044,23 +2046,9 @@ input, textarea { font-family: var(--font-body); }
   word-break:  break-word;
 }
 
-.long-body-fade {
-  position:   absolute;
-  bottom:     18px;
-  left:       0;
-  right:      0;
-  height:     36px;
-  background: linear-gradient(to bottom, transparent, var(--bg-msg-received));
-  pointer-events: none;
-}
-
-.message.own .long-body-fade {
-  background: linear-gradient(to bottom, transparent, var(--bg-msg-own, var(--bg-msg-received)));
-}
-
 .long-body-tap {
   display:        block;
-  margin-top:     2px;
+  margin-top:     4px;
   font-family:    var(--font-mono);
   font-size:      9px;
   letter-spacing: 1px;

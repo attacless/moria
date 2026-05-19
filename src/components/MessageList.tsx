@@ -59,7 +59,6 @@ function LongBodyPreview({ body, onOpen }: { body: string; onOpen: () => void })
   return (
     <div className="long-body-preview" onClick={e => { e.stopPropagation(); onOpen() }}>
       <span className="long-body-text">{body.slice(0, LONG_BODY_PREVIEW)}</span>
-      <span className="long-body-fade" />
       <span className="long-body-tap">TAP TO READ</span>
     </div>
   )
